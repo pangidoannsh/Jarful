@@ -1,5 +1,9 @@
 <script lang="ts">
-	import { CheckIcon, PlusIcon, MoonIcon } from '@lucide/svelte';
+	import { CheckIcon, PlusIcon, MoonIcon, CalendarIcon, ClockIcon, HashIcon } from '@lucide/svelte';
+	import { fly } from 'svelte/transition';
+	import { toast } from 'svelte-sonner';
+	import { parseSmart } from '#lib/smart-input.js';
+	import { formatDay, todayKey } from '#lib/date.js';
 	import { cn } from '#lib/utils.js';
 	import { addTodo, newTodoId } from '#lib/stores/todos.svelte.js';
 	import { jar, resolvedMarbleColor } from '#lib/stores/jar.svelte.js';
@@ -15,18 +19,26 @@
 	let logged = $state(false);
 	let input = $state<HTMLInputElement | null>(null);
 
+	const parsed = $derived(parseSmart(title, todayKey()));
+	// A logged item is something already done now, so a typed date does not apply.
+	const tokens = $derived(
+		mode === 'today' && logged ? parsed.tokens.filter((t) => t.kind !== 'date') : parsed.tokens
+	);
+	const ICON = { date: CalendarIcon, duration: ClockIcon, tag: HashIcon };
+
 	const placeholder = $derived(
 		mode === 'plan'
-			? 'Tambah rencana untuk besok…'
+			? 'Rencana besok… (coba: gym 1j #sehat)'
 			: logged
 				? 'Baru saja kulakukan…'
-				: 'Tambah todo hari ini…'
+				: 'Tambah todo… (coba: baca 30m #belajar)'
 	);
 
 	function submit(e: SubmitEvent) {
 		e.preventDefault();
-		const t = title.trim();
-		if (!t) return;
+		if (!title.trim()) return;
+		const p = parsed;
+		const extra = { tag: p.tag, estimateMin: p.estimateMin };
 		if (mode === 'today' && logged) {
 			const id = newTodoId(uid);
 			const golden = rollGolden();
@@ -37,16 +49,32 @@
 				playGolden();
 				jar.showLabel(praise(), true);
 			} else if (combo >= 2) jar.showLabel(`Combo x${combo}`);
-			const todo = addTodo(uid, { id, title: t, date, done: true, source: 'logged', golden });
+			const todo = addTodo(uid, { id, title: p.title, date, done: true, source: 'logged', golden, ...extra });
 			const rect = input?.getBoundingClientRect();
 			if (rect) jar.launch(id, rect, resolvedMarbleColor(todo.color, golden), golden);
 		} else {
-			addTodo(uid, { title: t, date, source: 'planned' });
+			const target = p.date ?? date;
+			addTodo(uid, { title: p.title, date: target, source: 'planned', ...extra });
+			if (target !== date) toast(`Ditambahkan ke ${formatDay(target)}`);
 		}
 		title = '';
 		input?.focus();
 	}
 </script>
+
+{#if tokens.length}
+	<div class="mx-auto mb-2 flex w-full max-w-xl flex-wrap gap-1.5 px-2" transition:fly={{ y: 6, duration: 150 }}>
+		{#each tokens as t (t.kind)}
+			{@const Icon = ICON[t.kind]}
+			<span
+				class="bg-card text-foreground ring-border flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium shadow-sm ring-1"
+			>
+				<Icon class="text-primary size-3.5" />
+				{t.label}
+			</span>
+		{/each}
+	</div>
+{/if}
 
 <form
 	onsubmit={submit}

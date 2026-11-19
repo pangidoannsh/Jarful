@@ -7,12 +7,15 @@
 	import { session } from '#lib/stores/session.svelte.js';
 	import { prefs } from '#lib/stores/prefs.svelte.js';
 	import { firebaseConfigured } from '#lib/firebase.js';
+	import { ensureDayCounts } from '#lib/stores/todos.svelte.js';
+	import { device } from '#lib/stores/device.svelte.js';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
 
 	prefs.init();
 	session.start();
+	device.init();
 
 	$effect(() => {
 		void [prefs.sound, prefs.haptic, prefs.strike, prefs.theme];
@@ -24,6 +27,15 @@
 		document
 			.querySelector('meta[name="theme-color"]')
 			?.setAttribute('content', prefs.dark ? '#1b1f33' : '#fbf7ef');
+	});
+
+	// One-time rebuild of per-day counts for accounts created before stats existed.
+	let statsChecked = '';
+	$effect(() => {
+		const uid = session.user?.uid;
+		if (!uid || !session.isMember || statsChecked === uid) return;
+		statsChecked = uid;
+		ensureDayCounts(uid).catch((e) => console.error('[jarful] stats', e));
 	});
 
 	const path = $derived(page.url.pathname);

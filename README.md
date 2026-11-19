@@ -10,6 +10,10 @@ Dibangun dengan SvelteKit (Svelte 5), Tailwind CSS v4, shadcn-svelte, dan Fireba
 - **Catat Cepat:** nyalakan tombol "Sudah selesai" untuk mencatat hal produktif yang baru saja kamu lakukan.
 - **Rencana Besok:** rencanakan hari esok sebelum tidur, bawa tugas yang belum selesai, dan dapatkan peringatan kalau rencananya terlalu banyak.
 - **Rekap Malam:** jumlah selesai, streak, jejak waktu, mood, dan satu kalimat refleksi.
+- **Statistik:** heatmap setahun, streak sekarang dan terpanjang, hari terbaik.
+- **Input pintar:** ketik `olahraga 30m #sehat besok` untuk mengisi durasi, tag, dan tanggal sekaligus. Tanggal yang dikenali: `hari ini`, `besok`, `lusa`, dan nama hari (`senin` … `minggu`).
+- **Pengingat malam:** notifikasi sekitar jam 21.00 WIB berisi rekap singkat dan ajakan merencanakan besok.
+- **PWA:** bisa dipasang di layar utama HP.
 - **Akun tanpa pendaftaran publik:** hanya admin yang bisa membuat akun lewat panel `/admin`.
 - **Offline-first:** perubahan langsung tampil dan tersinkron saat koneksi kembali.
 
@@ -55,7 +59,16 @@ npm run dev
 2. Di **Environment Variables**, masukkan semua variabel dari `.env`. Untuk `FIREBASE_ADMIN_PRIVATE_KEY`, tempel nilainya lengkap dengan `\n`.
 3. Klik **Deploy**.
 
-Hampir seluruh aplikasi berjalan di browser dan langsung terhubung ke Firebase. Satu-satunya kode server adalah `/api/admin/*` untuk mengelola akun, yang dijalankan Vercel sebagai serverless function dan sudah termasuk paket gratis Hobby.
+Hampir seluruh aplikasi berjalan di browser dan langsung terhubung ke Firebase. Kode server hanya ada di `/api/admin/*` untuk mengelola akun dan `/api/cron/reminder` serta `/api/reminder/test` untuk notifikasi, yang dijalankan Vercel sebagai serverless function dan sudah termasuk paket gratis Hobby.
+
+### 6. Pengingat malam (opsional)
+
+1. Firebase Console → **Settings → Cloud Messaging** → bagian **Web Push certificates** → **Generate key pair**. Salin kuncinya ke `VITE_FIREBASE_VAPID_KEY`.
+2. Buat teks acak panjang untuk `CRON_SECRET`, misalnya hasil `openssl rand -hex 32`.
+3. Masukkan kedua variabel itu ke Vercel, lalu Redeploy.
+4. Di aplikasi, buka **Pengaturan → Pengingat malam**, nyalakan, izinkan notifikasi, lalu tekan **Kirim tes**.
+
+Pengingat dikirim oleh Vercel Cron (`vercel.json`, jadwal `0 14 * * *` UTC = 21.00 WIB). Di paket Hobby, cron berjalan sekali sehari dan bisa meleset sampai 59 menit, jadi notifikasi tiba antara 21.00–21.59 WIB. Di iPhone, notifikasi hanya bekerja kalau Jarful sudah dipasang ke layar utama (iOS 16.4 ke atas).
 
 ## Struktur
 
@@ -82,8 +95,12 @@ src/
     rekap/                    Rekap Malam
     admin/                    Panel admin
     pengaturan/               Pengaturan
+    statistik/                Heatmap dan streak
     login/, ganti-password/
     api/admin/users/          API kelola akun (server)
+    api/cron/reminder/        dipanggil Vercel Cron jam 21.00 WIB
+    api/reminder/test/        kirim notifikasi tes ke perangkat sendiri
+  service-worker.js           pemasangan PWA + menampilkan notifikasi
 scripts/seed-admin.mjs        membuat akun admin pertama
 firestore.rules               aturan keamanan Firestore
 ```

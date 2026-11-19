@@ -2,7 +2,10 @@ import {
 	collection,
 	deleteDoc,
 	doc,
+	documentId,
+	getDoc,
 	getDocs,
+	increment,
 	onSnapshot,
 	query,
 	setDoc,
@@ -19,6 +22,12 @@ import type { Todo, TodoSource } from '#lib/types.js';
 
 const todosCol = (uid: string) => collection(db, 'users', uid, 'todos');
 const todoDoc = (uid: string, id: string) => doc(db, 'users', uid, 'todos', id);
+const dayDoc = (uid: string, date: string) => doc(db, 'users', uid, 'days', date);
+
+/** Keeps users/{uid}/days/{date}.doneCount in step, so stats never have to read every todo. */
+function bumpDay(batch: ReturnType<typeof writeBatch>, uid: string, date: string, by: number) {
+	batch.set(dayDoc(uid, date), { doneCount: increment(by) }, { merge: true });
+}
 
 function fromSnap(id: string, data: Record<string, unknown>): Todo {
 	return {
@@ -32,7 +41,9 @@ function fromSnap(id: string, data: Record<string, unknown>): Todo {
 		isFocus: Boolean(data.isFocus),
 		order: Number(data.order ?? 0),
 		color: Number(data.color ?? 1),
-		golden: Boolean(data.golden)
+		golden: Boolean(data.golden),
+		tag: data.tag ? String(data.tag) : undefined,
+		estimateMin: data.estimateMin ? Number(data.estimateMin) : undefined
 	};
 }
 
@@ -94,11 +105,20 @@ export function newTodoId(uid: string) {
 
 export function addTodo(
 	uid: string,
-	input: { title: string; date: string; done?: boolean; source?: TodoSource; id?: string; golden?: boolean }
+	input: {
+		title: string;
+		date: string;
+		done?: boolean;
+		source?: TodoSource;
+		id?: string;
+		golden?: boolean;
+		tag?: string;
+		estimateMin?: number;
+	}
 ) {
 	const id = input.id ?? newTodoId(uid);
 	const now = Timestamp.now();
-	const todo = {
+	const todo: Omit<Todo, 'id'> = {
 		title: input.title.trim(),
 		date: input.date,
 		done: Boolean(input.done),
@@ -110,16 +130,25 @@ export function addTodo(
 		color: 1 + Math.floor(Math.random() * 5),
 		golden: Boolean(input.golden)
 	};
-	setDoc(todoDoc(uid, id), todo).catch(fail);
+	if (input.tag) todo.tag = input.tag;
+	if (input.estimateMin) todo.estimateMin = input.estimateMin;
+	const batch = writeBatch(db);
+	batch.set(todoDoc(uid, id), todo);
+	if (todo.done) bumpDay(batch, uid, todo.date, 1);
+	batch.commit().catch(fail);
 	return { id, ...todo } as Todo;
 }
 
-export function setDone(uid: string, id: string, done: boolean, golden = false) {
-	updateDoc(todoDoc(uid, id), {
+export function setDone(uid: string, todo: Todo, done: boolean, golden = false) {
+	if (todo.done === done) return;
+	const batch = writeBatch(db);
+	batch.update(todoDoc(uid, todo.id), {
 		done,
 		doneAt: done ? Timestamp.now() : null,
 		golden: done ? golden : false
-	}).catch(fail);
+	});
+	bumpDay(batch, uid, todo.date, done ? 1 : -1);
+	batch.commit().catch(fail);
 }
 
 export function renameTodo(uid: string, id: string, title: string) {
@@ -133,12 +162,18 @@ export function moveTodo(uid: string, id: string, date: string) {
 /** Deletes a todo and offers an undo that restores it exactly. */
 export function removeTodo(uid: string, todo: Todo) {
 	const { id, ...data } = todo;
-	deleteDoc(todoDoc(uid, id)).catch(fail);
+	const batch = writeBatch(db);
+	batch.delete(todoDoc(uid, id));
+	if (todo.done) bumpDay(batch, uid, todo.date, -1);
+	batch.commit().catch(fail);
 	toast('Todo dihapus', {
 		action: {
 			label: 'Urungkan',
 			onClick: () => {
-				setDoc(todoDoc(uid, id), data).catch(fail);
+				const undo = writeBatch(db);
+				undo.set(todoDoc(uid, id), data);
+				if (todo.done) bumpDay(undo, uid, todo.date, 1);
+				undo.commit().catch(fail);
 			}
 		}
 	});
@@ -168,20 +203,66 @@ export async function loadCarryOver(uid: string, today: string) {
 		.sort((a, b) => b.date.localeCompare(a.date) || a.order - b.order);
 }
 
-/** Days with at least one completion, counted back from today (or yesterday if today has none yet). */
-export async function loadStreak(uid: string, today: string) {
-	const q = query(todosCol(uid), where('date', '>=', addDays(today, -120)));
+/** doneCount per day key, from `from` up to and including today. */
+export async function loadDayCounts(uid: string, from: string) {
+	const q = query(collection(db, 'users', uid, 'days'), where(documentId(), '>=', from));
 	const snap = await getDocs(q);
-	const active = new Set<string>();
+	const counts = new Map<string, number>();
 	snap.docs.forEach((d) => {
-		const data = d.data();
-		if (data.done) active.add(String(data.date));
+		const n = Number(d.data().doneCount ?? 0);
+		if (n > 0) counts.set(d.id, n);
 	});
-	let day = active.has(today) ? today : addDays(today, -1);
+	return counts;
+}
+
+/** Consecutive days with at least one completion, ending today (or yesterday if today has none yet). */
+export function currentStreak(counts: Map<string, number>, today: string) {
+	let day = counts.has(today) ? today : addDays(today, -1);
 	let streak = 0;
-	while (active.has(day)) {
+	while (counts.has(day)) {
 		streak++;
 		day = addDays(day, -1);
 	}
 	return streak;
+}
+
+export function longestStreak(counts: Map<string, number>) {
+	const days = [...counts.keys()].sort();
+	let best = 0;
+	let run = 0;
+	let prev = '';
+	for (const d of days) {
+		run = prev && addDays(prev, 1) === d ? run + 1 : 1;
+		best = Math.max(best, run);
+		prev = d;
+	}
+	return best;
+}
+
+export async function loadStreak(uid: string, today: string) {
+	return currentStreak(await loadDayCounts(uid, addDays(today, -400)), today);
+}
+
+const STATS_VERSION = 1;
+
+/**
+ * One-time rebuild of the per-day counts from existing todos (data made before stats existed).
+ * Runs once per account; afterwards every completion keeps the counts up to date.
+ */
+export async function ensureDayCounts(uid: string) {
+	const profile = await getDoc(doc(db, 'users', uid));
+	if (Number(profile.data()?.statsVersion ?? 0) >= STATS_VERSION) return;
+	const snap = await getDocs(query(todosCol(uid), where('done', '==', true)));
+	const counts = new Map<string, number>();
+	snap.docs.forEach((d) => {
+		const date = String(d.data().date);
+		counts.set(date, (counts.get(date) ?? 0) + 1);
+	});
+	const entries = [...counts.entries()];
+	for (let i = 0; i < entries.length; i += 400) {
+		const batch = writeBatch(db);
+		entries.slice(i, i + 400).forEach(([date, n]) => batch.set(dayDoc(uid, date), { doneCount: n }, { merge: true }));
+		await batch.commit();
+	}
+	await setDoc(doc(db, 'users', uid), { statsVersion: STATS_VERSION }, { merge: true });
 }

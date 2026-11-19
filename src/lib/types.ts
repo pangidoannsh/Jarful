@@ -17,6 +17,10 @@ export interface Todo {
 	color: number;
 	/** A lucky completion: shows as a gold marble. */
 	golden?: boolean;
+	/** From smart input, e.g. "sehat" for #sehat. */
+	tag?: string;
+	/** Estimated minutes, e.g. 30 for "30m". */
+	estimateMin?: number;
 }
 
 export interface Profile {

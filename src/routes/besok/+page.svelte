@@ -9,6 +9,7 @@
 	import QuickAdd from '#lib/components/QuickAdd.svelte';
 	import AppNav from '#lib/components/AppNav.svelte';
 	import CarryOver from '#lib/components/CarryOver.svelte';
+	import { formatMinutes } from '#lib/smart-input.js';
 
 	const uid = $derived(session.user!.uid);
 	const tomorrow = addDays(todayKey(), 1);
@@ -24,7 +25,8 @@
 	const list = $derived(
 		[...items].sort((a, b) => Number(b.isFocus) - Number(a.isFocus) || a.order - b.order)
 	);
-	const tooMany = $derived(items.length > 7);
+	const totalMin = $derived(items.reduce((sum, t) => sum + (t.estimateMin ?? 0), 0));
+	const tooMany = $derived(items.length > 7 || totalMin > 8 * 60);
 	const hasFocus = $derived(items.some((t) => t.isFocus));
 </script>
 
@@ -52,7 +54,7 @@
 		{#if list.length}
 			<section>
 				<h2 class="text-muted-foreground px-1 text-[11px] font-bold tracking-widest uppercase">
-					Rencana · {items.length} item
+					Rencana · {items.length} item{totalMin ? ` · estimasi ${formatMinutes(totalMin)}` : ''}
 				</h2>
 				<ul class="mt-1">
 					{#each list as t (t.id)}
@@ -74,7 +76,7 @@
 			<div class="flex gap-3 rounded-2xl bg-amber-500/10 p-4 text-sm" in:fade>
 				<TriangleAlertIcon class="mt-0.5 size-4 shrink-0 text-amber-600" />
 				<p>
-					<b>{items.length} rencana</b> mungkin terlalu banyak untuk satu hari. Rencana yang realistis
+					<b>{items.length} rencana{totalMin ? `, sekitar ${formatMinutes(totalMin)}` : ''}</b> mungkin terlalu banyak untuk satu hari. Rencana yang realistis
 					lebih sering selesai, dan itu jauh lebih memuaskan. Pertimbangkan memindah sebagian.
 				</p>
 			</div>

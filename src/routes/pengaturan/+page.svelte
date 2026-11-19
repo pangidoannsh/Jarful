@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { KeyRoundIcon, LogOutIcon, ShieldIcon } from '@lucide/svelte';
+	import { BellRingIcon, DownloadIcon, KeyRoundIcon, LogOutIcon, ShieldIcon, SmartphoneIcon } from '@lucide/svelte';
+	import { toast } from 'svelte-sonner';
+	import { device } from '#lib/stores/device.svelte.js';
 	import { session } from '#lib/stores/session.svelte.js';
 	import { prefs, type ThemePref } from '#lib/stores/prefs.svelte.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
@@ -7,6 +9,45 @@
 	import { cn } from '#lib/utils.js';
 	import AppNav from '#lib/components/AppNav.svelte';
 	import { playComplete } from '#lib/feedback.js';
+
+	const uid = $derived(session.user!.uid);
+	$effect(() => {
+		device.load(uid);
+	});
+
+	async function toggleReminder(on: boolean) {
+		try {
+			if (on) {
+				await device.enableReminder(uid);
+				toast.success('Pengingat malam aktif di perangkat ini');
+			} else {
+				await device.disableReminder(uid);
+				toast('Pengingat malam dimatikan di perangkat ini');
+			}
+		} catch (e) {
+			device.reminder = false;
+			toast.error((e as Error).message);
+		}
+	}
+
+	let testing = $state(false);
+	async function sendTest() {
+		testing = true;
+		try {
+			const res = await fetch('/api/reminder/test', {
+				method: 'POST',
+				headers: { authorization: `Bearer ${await session.idToken()}` }
+			});
+			const data = await res.json().catch(() => ({}));
+			if (!res.ok) throw new Error(data.message ?? 'Gagal mengirim');
+			if (data.sent) toast.success(`Notifikasi tes terkirim ke ${data.sent} perangkat`);
+			else toast.error('Belum ada perangkat dengan pengingat aktif');
+		} catch (e) {
+			toast.error((e as Error).message);
+		} finally {
+			testing = false;
+		}
+	}
 
 	const themes: { v: ThemePref; l: string }[] = [
 		{ v: 'auto', l: 'Otomatis' },
@@ -67,6 +108,57 @@
 					</button>
 				{/each}
 			</div>
+		</div>
+	</section>
+
+	<section class="bg-card ring-border mt-4 divide-y rounded-3xl ring-1">
+		<div class="flex items-center justify-between gap-4 p-5">
+			<div class="flex gap-3">
+				<BellRingIcon class="text-primary mt-0.5 size-5 shrink-0" />
+				<div>
+					<p class="font-medium">Pengingat malam</p>
+					<p class="text-muted-foreground text-sm">
+						Notifikasi sekitar jam 21.00 WIB: rekap singkat hari ini dan ajakan merencanakan besok.
+					</p>
+				</div>
+			</div>
+			<Switch
+				checked={device.reminder}
+				disabled={device.busy}
+				onCheckedChange={(v) => toggleReminder(v)}
+			/>
+		</div>
+		{#if device.reminder}
+			<div class="flex items-center justify-between gap-4 px-5 py-3">
+				<p class="text-muted-foreground text-sm">Cek apakah notifikasi sampai di perangkat ini.</p>
+				<Button variant="outline" size="sm" class="rounded-full" disabled={testing} onclick={sendTest}>
+					{testing ? 'Mengirim…' : 'Kirim tes'}
+				</Button>
+			</div>
+		{/if}
+		<div class="flex items-center justify-between gap-4 p-5">
+			<div class="flex gap-3">
+				<SmartphoneIcon class="text-primary mt-0.5 size-5 shrink-0" />
+				<div>
+					<p class="font-medium">Pasang di layar utama</p>
+					<p class="text-muted-foreground text-sm">
+						{#if device.installed}
+							Jarful sudah terpasang di perangkat ini.
+						{:else if device.isIos}
+							Di Safari: ketuk Bagikan, lalu <b>Tambah ke Layar Utama</b>. Wajib untuk notifikasi di iPhone.
+						{:else if device.installEvent}
+							Buka Jarful seperti aplikasi biasa, tanpa bilah browser.
+						{:else}
+							Buka menu browser, lalu pilih <b>Install app</b> atau <b>Tambahkan ke layar utama</b>.
+						{/if}
+					</p>
+				</div>
+			</div>
+			{#if device.installEvent && !device.installed}
+				<Button size="sm" class="rounded-full" onclick={() => device.install()}>
+					<DownloadIcon class="size-4" /> Pasang
+				</Button>
+			{/if}
 		</div>
 	</section>
 

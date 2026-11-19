@@ -3,6 +3,7 @@ import { error } from '@sveltejs/kit';
 import { cert, getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getMessaging } from 'firebase-admin/messaging';
 
 let app: App | null = null;
 
@@ -21,6 +22,7 @@ export function adminApp() {
 
 export const adminAuth = () => getAuth(adminApp());
 export const adminDb = () => getFirestore(adminApp());
+export const adminMessaging = () => getMessaging(adminApp());
 
 /** Verifies the caller's Firebase ID token and that it carries the admin claim. */
 export async function requireAdmin(request: Request) {
@@ -30,6 +32,21 @@ export async function requireAdmin(request: Request) {
 	try {
 		const decoded = await adminAuth().verifyIdToken(token, true);
 		if (decoded.admin !== true) error(403, 'Khusus admin');
+		return decoded;
+	} catch (e) {
+		if (e && typeof e === 'object' && 'status' in e) throw e;
+		error(401, 'Sesi tidak valid, silakan login ulang');
+	}
+}
+
+/** Verifies the caller's Firebase ID token and that it belongs to an account made by an admin. */
+export async function requireMember(request: Request) {
+	const header = request.headers.get('authorization') ?? '';
+	const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+	if (!token) error(401, 'Belum login');
+	try {
+		const decoded = await adminAuth().verifyIdToken(token, true);
+		if (decoded.member !== true && decoded.admin !== true) error(403, 'Akun belum diaktifkan');
 		return decoded;
 	} catch (e) {
 		if (e && typeof e === 'object' && 'status' in e) throw e;

@@ -16,6 +16,8 @@ declare global {
 		readonly VITE_FIREBASE_STORAGE_BUCKET: string;
 		readonly VITE_FIREBASE_MESSAGING_SENDER_ID: string;
 		readonly VITE_FIREBASE_APP_ID: string;
+		/** Web Push key pair from Firebase Console → Cloud Messaging. Optional: reminders stay off without it. */
+		readonly VITE_FIREBASE_VAPID_KEY?: string;
 	}
 }
 

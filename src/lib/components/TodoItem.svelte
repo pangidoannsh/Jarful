@@ -27,6 +27,7 @@
 		rollGolden
 	} from '#lib/feedback.js';
 	import type { Todo } from '#lib/types.js';
+	import { formatMinutes } from '#lib/smart-input.js';
 
 	let {
 		todo,
@@ -48,7 +49,7 @@
 
 	function toggle() {
 		if (todo.done) {
-			setDone(uid, todo.id, false);
+			setDone(uid, todo, false);
 			return;
 		}
 		const rect = box?.getBoundingClientRect();
@@ -66,7 +67,7 @@
 			jar.showLabel(`Combo x${combo}`);
 		}
 		if (rect) jar.launch(todo.id, rect, resolvedMarbleColor(todo.color, golden), golden);
-		setDone(uid, todo.id, true, golden);
+		setDone(uid, todo, true, golden);
 
 		if (todo.isFocus && rect) {
 			playFanfare();
@@ -148,6 +149,12 @@
 		{/if}
 	</div>
 
+	{#if todo.estimateMin}
+		<span class="text-muted-foreground hidden text-[11px] tabular-nums sm:inline">{formatMinutes(todo.estimateMin)}</span>
+	{/if}
+	{#if todo.tag}
+		<span class="bg-primary/10 text-primary max-w-24 truncate rounded-full px-2 py-0.5 text-[11px] font-medium">#{todo.tag}</span>
+	{/if}
 	{#if todo.source === 'logged'}
 		<span class="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[11px]">dicatat</span>
 	{/if}
@@ -185,7 +192,7 @@
 					<ArrowRightIcon /> Pindah ke besok
 				</DropdownMenu.Item>
 			{/if}
-			{#if mode === 'plan'}
+			{#if mode === 'plan' && !todo.done}
 				<DropdownMenu.Item
 					onclick={() => {
 						moveTodo(uid, todo.id, todayKey());
