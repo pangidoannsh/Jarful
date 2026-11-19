@@ -27,7 +27,7 @@
 	const uid = $derived(session.user!.uid);
 	const today = todayKey();
 
-	type Code = 'AI_UNPAID' | 'AI_NOT_SETUP' | 'AI_BUSY' | 'AI_LIMIT' | 'NO_DATA';
+	type Code = 'AI_UNPAID' | 'AI_NOT_SETUP' | 'AI_BUSY' | 'AI_LIMIT' | 'NO_DATA' | 'SERVER_NOT_SETUP';
 	const MESSAGES: Record<Code, { title: string; body: string; icon: typeof CreditCardIcon }> = {
 		AI_UNPAID: {
 			title: 'Admin belum bayar tagihan AI',
@@ -37,6 +37,11 @@
 		AI_NOT_SETUP: {
 			title: 'Fitur AI belum diaktifkan admin',
 			body: 'Admin perlu mengisi ANTHROPIC_API_KEY di Vercel.',
+			icon: WrenchIcon
+		},
+		SERVER_NOT_SETUP: {
+			title: 'Server belum dikonfigurasi',
+			body: 'Variabel FIREBASE_ADMIN_* belum terbaca oleh server. Di komputer: isi .env lalu jalankan ulang npm run dev. Di Vercel: isi Environment Variables lalu Redeploy.',
 			icon: WrenchIcon
 		},
 		AI_BUSY: {

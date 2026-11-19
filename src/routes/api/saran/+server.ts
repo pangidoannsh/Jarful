@@ -93,6 +93,10 @@ const SARAN_TOOL = {
 };
 
 export const POST: RequestHandler = async ({ request }) => {
+	// Missing FIREBASE_ADMIN_* is a setup problem, not "Claude is busy": say so plainly.
+	if (!process.env.FIREBASE_ADMIN_PROJECT_ID || !process.env.FIREBASE_ADMIN_PRIVATE_KEY) {
+		return json({ ok: false, code: 'SERVER_NOT_SETUP' });
+	}
 	const me = await requireMember(request);
 	const body = (await request.json().catch(() => ({}))) as { ranah?: string; refresh?: boolean; recheck?: boolean };
 	const db = adminDb();
