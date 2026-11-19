@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { BellRingIcon, DownloadIcon, KeyRoundIcon, LogOutIcon, ShieldIcon, SmartphoneIcon } from '@lucide/svelte';
+	import { BellRingIcon, DownloadIcon, RepeatIcon, KeyRoundIcon, LogOutIcon, ShieldIcon, SmartphoneIcon } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { device } from '#lib/stores/device.svelte.js';
 	import { session } from '#lib/stores/session.svelte.js';
@@ -163,6 +163,9 @@
 	</section>
 
 	<section class="mt-4 space-y-2">
+		<Button href="/rutinitas" variant="outline" class="h-11 w-full justify-start gap-2 rounded-2xl">
+			<RepeatIcon class="size-4" /> Rutinitas harian
+		</Button>
 		<Button href="/ganti-password" variant="outline" class="h-11 w-full justify-start gap-2 rounded-2xl">
 			<KeyRoundIcon class="size-4" /> Ganti password
 		</Button>

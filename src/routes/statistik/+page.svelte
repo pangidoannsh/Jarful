@@ -6,6 +6,7 @@
 	import { addDays, formatDay, fromKey, todayKey } from '#lib/date.js';
 	import { cn } from '#lib/utils.js';
 	import AppNav from '#lib/components/AppNav.svelte';
+	import WeeklyStats from '#lib/components/WeeklyStats.svelte';
 
 	const uid = $derived(session.user!.uid);
 	const today = todayKey();
@@ -100,7 +101,7 @@
 	</header>
 
 	<h1 class="font-display mt-6 text-3xl font-semibold">Statistik</h1>
-	<p class="text-muted-foreground mt-1 text-sm">Setahun terakhir, satu kotak untuk setiap hari.</p>
+	<p class="text-muted-foreground mt-1 text-sm">Pola produktivitasmu: setahun terakhir dan minggu ini.</p>
 
 	{#if failed}
 		<p class="text-destructive mt-8 text-sm">Gagal memuat statistik. Periksa koneksi lalu muat ulang.</p>
@@ -169,6 +170,8 @@
 				Banyak
 			</div>
 		</section>
+
+		<WeeklyStats {uid} />
 
 		{#if stats?.best}
 			<a

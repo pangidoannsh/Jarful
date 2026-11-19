@@ -14,6 +14,13 @@ Dibangun dengan SvelteKit (Svelte 5), Tailwind CSS v4, shadcn-svelte, dan Fireba
 - **Input pintar:** ketik `olahraga 30m #sehat besok` untuk mengisi durasi, tag, dan tanggal sekaligus. Tanggal yang dikenali: `hari ini`, `besok`, `lusa`, dan nama hari (`senin` … `minggu`).
 - **Pengingat malam:** notifikasi sekitar jam 21.00 WIB berisi rekap singkat dan ajakan merencanakan besok.
 - **PWA:** bisa dipasang di layar utama HP.
+- **Kategori berwarna:** setiap `#tag` punya warna kelereng sendiri; rekap menunjukkan ke mana energimu pergi.
+- **Rutinitas:** kebiasaan yang muncul otomatis di hari-hari yang dipilih.
+- **Timer fokus:** Pomodoro 25/5 per todo; menit fokus tercatat.
+- **Statistik mingguan:** minggu ini vs minggu lalu, jam paling produktif, kategori terbanyak, persentase rencana yang tuntas.
+- **Kartu rekap:** gambar rekap harian untuk dibagikan ke Story atau WhatsApp.
+- **Pintasan:** `N` todo baru, `H` `B` `R` `S` `L` pindah halaman, `Ctrl/⌘ K` palet perintah.
+- **Saran Belajar dari Claude:** tiga saran topik (dekat, sedang, jauh) dalam satu ranah, dari riwayat todo `#belajar` dan catatannya, plus Peta Belajar.
 - **Akun tanpa pendaftaran publik:** hanya admin yang bisa membuat akun lewat panel `/admin`.
 - **Offline-first:** perubahan langsung tampil dan tersinkron saat koneksi kembali.
 
@@ -59,7 +66,7 @@ npm run dev
 2. Di **Environment Variables**, masukkan semua variabel dari `.env`. Untuk `FIREBASE_ADMIN_PRIVATE_KEY`, tempel nilainya lengkap dengan `\n`.
 3. Klik **Deploy**.
 
-Hampir seluruh aplikasi berjalan di browser dan langsung terhubung ke Firebase. Kode server hanya ada di `/api/admin/*` untuk mengelola akun dan `/api/cron/reminder` serta `/api/reminder/test` untuk notifikasi, yang dijalankan Vercel sebagai serverless function dan sudah termasuk paket gratis Hobby.
+Hampir seluruh aplikasi berjalan di browser dan langsung terhubung ke Firebase. Kode server hanya ada di `/api/admin/*` (kelola akun), `/api/cron/reminder` dan `/api/reminder/test` (notifikasi), serta `/api/saran` (Claude), yang dijalankan Vercel sebagai serverless function dan sudah termasuk paket gratis Hobby.
 
 ### 6. Pengingat malam (opsional)
 
@@ -69,6 +76,19 @@ Hampir seluruh aplikasi berjalan di browser dan langsung terhubung ke Firebase. 
 4. Di aplikasi, buka **Pengaturan → Pengingat malam**, nyalakan, izinkan notifikasi, lalu tekan **Kirim tes**.
 
 Pengingat dikirim oleh Vercel Cron (`vercel.json`, jadwal `0 14 * * *` UTC = 21.00 WIB). Di paket Hobby, cron berjalan sekali sehari dan bisa meleset sampai 59 menit, jadi notifikasi tiba antara 21.00–21.59 WIB. Di iPhone, notifikasi hanya bekerja kalau Jarful sudah dipasang ke layar utama (iOS 16.4 ke atas).
+
+### 7. Saran Belajar dari Claude (opsional)
+
+1. Buat API key di [console.anthropic.com](https://console.anthropic.com) dan isi saldo. Tagihan API terpisah dari langganan Claude.ai.
+2. Isi `ANTHROPIC_API_KEY` di Vercel, lalu Redeploy.
+3. Tandai todo belajar dengan `#belajar`, beri catatan lewat menu ⋯ → **Catatan belajar**, lalu buka halaman **Belajar**.
+
+Pengaman biaya dan tagihan:
+
+- Maksimal 3 permintaan saran per orang per hari; hasilnya disimpan sehingga membuka ulang halaman tidak memanggil API.
+- Saran harian memakai Claude Haiku; profil belajar mingguan memakai Claude Sonnet (ubah lewat `ANTHROPIC_MODEL_DAILY` / `ANTHROPIC_MODEL_PROFILE`).
+- Kalau API menolak karena tagihan atau batas belanja (`billing_error`, `enforced_spend_limit_reached`, dan sejenisnya), halaman Belajar menampilkan **"Admin belum bayar tagihan AI"** dan server berhenti memanggil API selama 6 jam (`system/aiStatus`). Admin bisa menekan **Cek ulang sekarang** setelah membayar.
+- Hanya todo bertanda `#belajar` dan catatannya yang dikirim ke Claude.
 
 ## Struktur
 
@@ -95,7 +115,10 @@ src/
     rekap/                    Rekap Malam
     admin/                    Panel admin
     pengaturan/               Pengaturan
-    statistik/                Heatmap dan streak
+    statistik/                Heatmap, streak, statistik mingguan
+    rutinitas/                Kelola rutinitas harian
+    belajar/                  Saran Belajar dan Peta Belajar
+    api/saran/                memanggil Claude (server)
     login/, ganti-password/
     api/admin/users/          API kelola akun (server)
     api/cron/reminder/        dipanggil Vercel Cron jam 21.00 WIB

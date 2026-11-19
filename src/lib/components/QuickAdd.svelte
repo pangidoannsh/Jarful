@@ -3,6 +3,8 @@
 	import { fly } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
 	import { parseSmart } from '#lib/smart-input.js';
+	import { recentTags, tagColor } from '#lib/tags.js';
+	import { FOCUS_INPUT_EVENT } from '#lib/events.js';
 	import { formatDay, todayKey } from '#lib/date.js';
 	import { cn } from '#lib/utils.js';
 	import { addTodo, newTodoId } from '#lib/stores/todos.svelte.js';
@@ -26,6 +28,20 @@
 	);
 	const ICON = { date: CalendarIcon, duration: ClockIcon, tag: HashIcon };
 
+	// While a #tag is being typed, offer the ones already used.
+	const partialTag = $derived(title.match(/(?:^|\s)#([\p{L}\p{N}_-]*)$/u)?.[1] ?? null);
+	const tagSuggestions = $derived(
+		partialTag === null
+			? []
+			: recentTags()
+					.filter((t) => t.startsWith(partialTag.toLowerCase()) && t !== partialTag.toLowerCase())
+					.slice(0, 6)
+	);
+	function pickTag(tag: string) {
+		title = title.replace(/#[\p{L}\p{N}_-]*$/u, `#${tag} `);
+		input?.focus();
+	}
+
 	const placeholder = $derived(
 		mode === 'plan'
 			? 'Rencana besok… (coba: gym 1j #sehat)'
@@ -33,6 +49,12 @@
 				? 'Baru saja kulakukan…'
 				: 'Tambah todo… (coba: baca 30m #belajar)'
 	);
+
+	$effect(() => {
+		const f = () => input?.focus();
+		addEventListener(FOCUS_INPUT_EVENT, f);
+		return () => removeEventListener(FOCUS_INPUT_EVENT, f);
+	});
 
 	function submit(e: SubmitEvent) {
 		e.preventDefault();
@@ -62,7 +84,20 @@
 	}
 </script>
 
-{#if tokens.length}
+{#if tagSuggestions.length}
+	<div class="mx-auto mb-2 flex w-full max-w-xl flex-wrap gap-1.5 px-2" transition:fly={{ y: 6, duration: 150 }}>
+		{#each tagSuggestions as t (t)}
+			<button
+				type="button"
+				onclick={() => pickTag(t)}
+				class="bg-card ring-border flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium shadow-sm ring-1"
+			>
+				<span class="size-2.5 rounded-full" style="background: var(--marble-{tagColor(t)})"></span>
+				#{t}
+			</button>
+		{/each}
+	</div>
+{:else if tokens.length}
 	<div class="mx-auto mb-2 flex w-full max-w-xl flex-wrap gap-1.5 px-2" transition:fly={{ y: 6, duration: 150 }}>
 		{#each tokens as t (t.kind)}
 			{@const Icon = ICON[t.kind]}

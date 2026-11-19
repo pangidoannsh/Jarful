@@ -3,7 +3,7 @@
 	import { cubicOut } from 'svelte/easing';
 	import { fly } from 'svelte/transition';
 	import { doc, getDoc, setDoc } from 'firebase/firestore';
-	import { ChevronLeftIcon, ChevronRightIcon, FlameIcon, MoonStarIcon, StarIcon } from '@lucide/svelte';
+	import { ChevronLeftIcon, ChevronRightIcon, FlameIcon, MoonStarIcon, StarIcon, GraduationCapIcon } from '@lucide/svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { db } from '#lib/firebase.js';
@@ -13,8 +13,11 @@
 	import { confettiBurst, playFanfare } from '#lib/feedback.js';
 	import { marbleColor } from '#lib/stores/jar.svelte.js';
 	import { cn } from '#lib/utils.js';
+	import { tagColor } from '#lib/tags.js';
 	import Jar from '#lib/components/Jar.svelte';
 	import AppNav from '#lib/components/AppNav.svelte';
+	import ShareRecap from '#lib/components/ShareRecap.svelte';
+	import { resolvedMarbleColor } from '#lib/stores/jar.svelte.js';
 	import type { DayNote } from '#lib/types.js';
 
 	const uid = $derived(session.user!.uid);
@@ -36,6 +39,11 @@
 	const logged = $derived(done.length - plannedDone);
 	const golden = $derived(done.filter((t) => t.golden).length);
 	const perfect = $derived(planned > 0 && plannedDone === planned);
+	const byTag = $derived.by(() => {
+		const m = new Map<string, number>();
+		for (const t of done) m.set(t.tag ?? '', (m.get(t.tag ?? '') ?? 0) + 1);
+		return [...m.entries()].sort((a, b) => b[1] - a[1]);
+	});
 
 	const count = new Tween(0, { duration: 1200, easing: cubicOut });
 	$effect(() => {
@@ -144,8 +152,34 @@
 			</div>
 		</section>
 
-		{#if timeline.length}
+		{#if byTag.length > 1 || (byTag.length === 1 && byTag[0][0])}
 			<section class="bg-card ring-border mt-8 rounded-3xl p-5 ring-1">
+				<h2 class="text-muted-foreground text-[11px] font-bold tracking-widest uppercase">
+					Ke mana energimu hari ini
+				</h2>
+				<div class="mt-3 flex h-3 overflow-hidden rounded-full">
+					{#each byTag as [tag, n] (tag)}
+						<div
+							style="flex: {n}; background: {tag ? `var(--marble-${tagColor(tag)})` : 'var(--muted-foreground)'}"
+						></div>
+					{/each}
+				</div>
+				<ul class="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
+					{#each byTag as [tag, n] (tag)}
+						<li class="flex items-center gap-1.5">
+							<span
+								class="size-2.5 rounded-full"
+								style="background: {tag ? `var(--marble-${tagColor(tag)})` : 'var(--muted-foreground)'}"
+							></span>
+							{tag ? `#${tag}` : 'tanpa tag'} <b class="tabular-nums">{n}</b>
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
+
+		{#if timeline.length}
+			<section class="bg-card ring-border mt-4 rounded-3xl p-5 ring-1">
 				<h2 class="text-muted-foreground text-[11px] font-bold tracking-widest uppercase">
 					Jejak hari ini
 				</h2>
@@ -212,12 +246,38 @@
 		</section>
 	{/key}
 
-	{#if isToday}
-		<a
-			href="/besok"
-			class="bg-primary text-primary-foreground mt-6 flex items-center justify-center gap-2 rounded-full py-3.5 font-semibold shadow-lg"
-		>
-			<MoonStarIcon class="size-4" /> Rencanakan besok
+	{#if done.some((t) => t.tag === 'belajar')}
+		<a href="/belajar" class="bg-card ring-border mt-4 flex items-center gap-3 rounded-3xl p-4 ring-1">
+			<GraduationCapIcon class="text-primary size-5 shrink-0" />
+			<p class="flex-1 text-sm">
+				Kamu belajar hari ini. <b>Lihat saran topik berikutnya</b> dari Claude.
+			</p>
 		</a>
 	{/if}
+
+	<div class="mt-6 flex flex-col gap-3 sm:flex-row">
+		{#if done.length}
+			<ShareRecap
+				fileName={`jarful-${date}.png`}
+				input={() => ({
+					dateLabel: formatDay(date, { weekday: 'long', day: 'numeric', month: 'short' }),
+					count: done.length,
+					planned,
+					plannedDone,
+					streak: isToday ? streak : null,
+					perfect,
+					marbles: done.map((t) => resolvedMarbleColor(t.color, t.golden)),
+					items: timeline.map((t) => ({ title: t.title, color: resolvedMarbleColor(t.color, t.golden) }))
+				})}
+			/>
+		{/if}
+		{#if isToday}
+			<a
+				href="/besok"
+				class="bg-primary text-primary-foreground flex h-12 flex-1 items-center justify-center gap-2 rounded-full font-semibold shadow-lg"
+			>
+				<MoonStarIcon class="size-4" /> Rencanakan besok
+			</a>
+		{/if}
+	</div>
 </div>

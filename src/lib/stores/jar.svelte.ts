@@ -65,11 +65,11 @@ export const jar = new JarState();
 
 export function marbleColor(n: number, golden?: boolean) {
 	if (golden) return 'var(--gold)';
-	return `var(--marble-${((n - 1) % 5) + 1})`;
+	return `var(--marble-${((n - 1) % 8) + 1})`;
 }
 
 /** Same as marbleColor but resolved to a concrete value, for elements outside the SVG. */
 export function resolvedMarbleColor(n: number, golden?: boolean) {
-	const v = golden ? '--gold' : `--marble-${((n - 1) % 5) + 1}`;
+	const v = golden ? '--gold' : `--marble-${((n - 1) % 8) + 1}`;
 	return getComputedStyle(document.documentElement).getPropertyValue(v).trim() || '#e8673a';
 }

@@ -9,6 +9,9 @@
 	import { firebaseConfigured } from '#lib/firebase.js';
 	import { ensureDayCounts } from '#lib/stores/todos.svelte.js';
 	import { device } from '#lib/stores/device.svelte.js';
+	import { focus } from '#lib/stores/focus.svelte.js';
+	import FocusBar from '#lib/components/FocusBar.svelte';
+	import CommandPalette from '#lib/components/CommandPalette.svelte';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
@@ -16,6 +19,7 @@
 	prefs.init();
 	session.start();
 	device.init();
+	focus.init();
 
 	$effect(() => {
 		void [prefs.sound, prefs.haptic, prefs.strike, prefs.theme];
@@ -84,4 +88,8 @@
 	</main>
 {:else if canShow}
 	{@render children()}
+	{#if session.user && !isPublic}
+		<FocusBar />
+		<CommandPalette />
+	{/if}
 {/if}

@@ -6,6 +6,8 @@ import {
 	getDoc,
 	getDocs,
 	increment,
+	arrayUnion,
+	arrayRemove,
 	onSnapshot,
 	query,
 	setDoc,
@@ -18,6 +20,7 @@ import {
 import { toast } from 'svelte-sonner';
 import { db } from '#lib/firebase.js';
 import { addDays } from '#lib/date.js';
+import { rememberTag, tagColor } from '#lib/tags.js';
 import type { Todo, TodoSource } from '#lib/types.js';
 
 const todosCol = (uid: string) => collection(db, 'users', uid, 'todos');
@@ -43,7 +46,10 @@ function fromSnap(id: string, data: Record<string, unknown>): Todo {
 		color: Number(data.color ?? 1),
 		golden: Boolean(data.golden),
 		tag: data.tag ? String(data.tag) : undefined,
-		estimateMin: data.estimateMin ? Number(data.estimateMin) : undefined
+		estimateMin: data.estimateMin ? Number(data.estimateMin) : undefined,
+		routineId: data.routineId ? String(data.routineId) : undefined,
+		focusMin: data.focusMin ? Number(data.focusMin) : undefined,
+		note: data.note ? String(data.note) : undefined
 	};
 }
 
@@ -127,10 +133,13 @@ export function addTodo(
 		source: input.source ?? 'planned',
 		isFocus: false,
 		order: Date.now(),
-		color: 1 + Math.floor(Math.random() * 5),
+		color: input.tag ? tagColor(input.tag) : 1 + Math.floor(Math.random() * 5),
 		golden: Boolean(input.golden)
 	};
-	if (input.tag) todo.tag = input.tag;
+	if (input.tag) {
+		todo.tag = input.tag;
+		rememberTag(input.tag);
+	}
 	if (input.estimateMin) todo.estimateMin = input.estimateMin;
 	const batch = writeBatch(db);
 	batch.set(todoDoc(uid, id), todo);
@@ -151,6 +160,14 @@ export function setDone(uid: string, todo: Todo, done: boolean, golden = false) 
 	batch.commit().catch(fail);
 }
 
+export function setNote(uid: string, id: string, note: string) {
+	updateDoc(todoDoc(uid, id), { note: note.trim().slice(0, 500) }).catch(fail);
+}
+
+export function addFocusMinutes(uid: string, id: string, minutes: number) {
+	updateDoc(todoDoc(uid, id), { focusMin: increment(minutes) }).catch(fail);
+}
+
 export function renameTodo(uid: string, id: string, title: string) {
 	updateDoc(todoDoc(uid, id), { title: title.trim() }).catch(fail);
 }
@@ -161,10 +178,16 @@ export function moveTodo(uid: string, id: string, date: string) {
 
 /** Deletes a todo and offers an undo that restores it exactly. */
 export function removeTodo(uid: string, todo: Todo) {
-	const { id, ...data } = todo;
+	const { id, ...rest } = todo;
+	// Firestore rejects undefined values, so drop the optional fields that are not set.
+	const data = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
 	const batch = writeBatch(db);
 	batch.delete(todoDoc(uid, id));
 	if (todo.done) bumpDay(batch, uid, todo.date, -1);
+	// A routine's todo that was deleted on purpose is not created again for that day.
+	if (todo.routineId) {
+		batch.set(dayDoc(uid, todo.date), { skippedRoutines: arrayUnion(todo.routineId) }, { merge: true });
+	}
 	batch.commit().catch(fail);
 	toast('Todo dihapus', {
 		action: {
@@ -172,6 +195,9 @@ export function removeTodo(uid: string, todo: Todo) {
 			onClick: () => {
 				const undo = writeBatch(db);
 				undo.set(todoDoc(uid, id), data);
+				if (todo.routineId) {
+					undo.set(dayDoc(uid, todo.date), { skippedRoutines: arrayRemove(todo.routineId) }, { merge: true });
+				}
 				if (todo.done) bumpDay(undo, uid, todo.date, 1);
 				undo.commit().catch(fail);
 			}
@@ -201,6 +227,13 @@ export async function loadCarryOver(uid: string, today: string) {
 		.map((d) => fromSnap(d.id, d.data()))
 		.filter((t) => !t.done && t.source === 'planned')
 		.sort((a, b) => b.date.localeCompare(a.date) || a.order - b.order);
+}
+
+/** All todos dated from `from` (inclusive) up to `to` (inclusive). */
+export async function loadTodosBetween(uid: string, from: string, to: string) {
+	const q = query(todosCol(uid), where('date', '>=', from), where('date', '<=', to));
+	const snap = await getDocs(q);
+	return snap.docs.map((d) => fromSnap(d.id, d.data()));
 }
 
 /** doneCount per day key, from `from` up to and including today. */

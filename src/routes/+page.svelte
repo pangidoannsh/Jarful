@@ -12,6 +12,7 @@
 	import QuickAdd from '#lib/components/QuickAdd.svelte';
 	import AppNav from '#lib/components/AppNav.svelte';
 	import CarryOver from '#lib/components/CarryOver.svelte';
+	import { ensureRoutineTodos } from '#lib/stores/routines.svelte.js';
 
 	const uid = $derived(session.user!.uid);
 	let today = $state(todayKey());
@@ -28,6 +29,7 @@
 
 	let day = $state<DayTodos | null>(null);
 	$effect(() => {
+		ensureRoutineTodos(uid, today);
 		const d = new DayTodos(uid, today);
 		day = d;
 		return d.start();

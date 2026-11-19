@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { flip } from 'svelte/animate';
 	import { fade, fly } from 'svelte/transition';
-	import { MoonStarIcon, StarIcon, TriangleAlertIcon, BellIcon } from '@lucide/svelte';
+	import { MoonStarIcon, StarIcon, TriangleAlertIcon, BellIcon, RepeatIcon } from '@lucide/svelte';
 	import { session } from '#lib/stores/session.svelte.js';
 	import { DayTodos } from '#lib/stores/todos.svelte.js';
 	import { addDays, formatDay, todayKey } from '#lib/date.js';
@@ -9,6 +9,7 @@
 	import QuickAdd from '#lib/components/QuickAdd.svelte';
 	import AppNav from '#lib/components/AppNav.svelte';
 	import CarryOver from '#lib/components/CarryOver.svelte';
+	import { ensureRoutineTodos } from '#lib/stores/routines.svelte.js';
 	import { formatMinutes } from '#lib/smart-input.js';
 
 	const uid = $derived(session.user!.uid);
@@ -16,6 +17,7 @@
 
 	let day = $state<DayTodos | null>(null);
 	$effect(() => {
+		ensureRoutineTodos(uid, tomorrow);
 		const d = new DayTodos(uid, tomorrow);
 		day = d;
 		return d.start();
@@ -46,6 +48,9 @@
 		<p class="text-muted-foreground mt-2 text-sm">
 			Tulis 3–7 hal yang ingin kamu selesaikan besok, lalu pilih satu sebagai Fokus Utama.
 		</p>
+		<a href="/rutinitas" class="text-primary mt-2 inline-flex items-center gap-1 text-sm font-medium">
+			<RepeatIcon class="size-3.5" /> Atur rutinitas harian
+		</a>
 	</section>
 
 	<div class="mt-6 space-y-4">
@@ -88,9 +93,9 @@
 			<div class="text-muted-foreground px-6 py-12 text-center text-sm">
 				<p class="font-display text-foreground text-xl">Besok mau ngapain?</p>
 				<p class="mt-2">Rencana yang ditulis malam ini membuat pagimu langsung terarah.</p>
-				<p class="mt-4 inline-flex items-center gap-1.5 text-xs">
-					<BellIcon class="size-3.5" /> Pengingat malam akan hadir di versi berikutnya.
-				</p>
+				<a href="/pengaturan" class="mt-4 inline-flex items-center gap-1.5 text-xs underline">
+					<BellIcon class="size-3.5" /> Nyalakan pengingat malam jam 21.00
+				</a>
 			</div>
 		{/if}
 	</div>

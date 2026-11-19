@@ -7,15 +7,21 @@
 		StarOffIcon,
 		Trash2Icon,
 		ArrowRightIcon,
-		ArrowLeftIcon
+		ArrowLeftIcon,
+		RepeatIcon,
+		TimerIcon,
+		NotebookPenIcon
 	} from '@lucide/svelte';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { focus, FOCUS_MIN } from '#lib/stores/focus.svelte.js';
 	import { toast } from 'svelte-sonner';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { cn } from '#lib/utils.js';
 	import { addDays, todayKey } from '#lib/date.js';
 	import { prefs } from '#lib/stores/prefs.svelte.js';
 	import { jar, resolvedMarbleColor } from '#lib/stores/jar.svelte.js';
-	import { moveTodo, removeTodo, renameTodo, setDone, setFocus } from '#lib/stores/todos.svelte.js';
+	import { moveTodo, removeTodo, renameTodo, setDone, setFocus, setNote } from '#lib/stores/todos.svelte.js';
 	import {
 		confettiBurst,
 		haptic,
@@ -28,6 +34,7 @@
 	} from '#lib/feedback.js';
 	import type { Todo } from '#lib/types.js';
 	import { formatMinutes } from '#lib/smart-input.js';
+	import { tagColor } from '#lib/tags.js';
 
 	let {
 		todo,
@@ -45,6 +52,12 @@
 	let box = $state<HTMLButtonElement | null>(null);
 	let popping = $state(false);
 	let editing = $state(false);
+	let noteOpen = $state(false);
+	let noteDraft = $state('');
+	function openNote() {
+		noteDraft = todo.note ?? '';
+		noteOpen = true;
+	}
 	let draft = $state('');
 
 	function toggle() {
@@ -68,6 +81,12 @@
 		}
 		if (rect) jar.launch(todo.id, rect, resolvedMarbleColor(todo.color, golden), golden);
 		setDone(uid, todo, true, golden);
+		if (todo.tag === 'belajar' && !todo.note) {
+			toast('Apa yang kamu pelajari?', {
+				description: 'Catatan singkat membantu Saran Belajar lebih tepat.',
+				action: { label: 'Tulis catatan', onClick: openNote }
+			});
+		}
 
 		if (todo.isFocus && rect) {
 			playFanfare();
@@ -149,11 +168,28 @@
 		{/if}
 	</div>
 
+	{#if focus.session?.todoId === todo.id && focus.session.phase === 'focus'}
+		<TimerIcon class="text-primary size-4 shrink-0 animate-pulse" aria-label="Sedang fokus" />
+	{:else if todo.focusMin}
+		<span class="text-muted-foreground flex items-center gap-0.5 text-[11px] tabular-nums" title="Waktu fokus">
+			<TimerIcon class="size-3" />{formatMinutes(todo.focusMin)}
+		</span>
+	{/if}
 	{#if todo.estimateMin}
 		<span class="text-muted-foreground hidden text-[11px] tabular-nums sm:inline">{formatMinutes(todo.estimateMin)}</span>
 	{/if}
 	{#if todo.tag}
-		<span class="bg-primary/10 text-primary max-w-24 truncate rounded-full px-2 py-0.5 text-[11px] font-medium">#{todo.tag}</span>
+		<span
+			class="max-w-24 truncate rounded-full px-2 py-0.5 text-[11px] font-medium"
+			style="color: color-mix(in oklch, var(--marble-{tagColor(todo.tag)}) 80%, var(--foreground)); background: color-mix(in oklch, var(--marble-{tagColor(todo.tag)}) 16%, transparent)"
+			>#{todo.tag}</span
+		>
+	{/if}
+	{#if todo.note}
+		<NotebookPenIcon class="text-muted-foreground size-3.5 shrink-0" aria-label="Ada catatan" />
+	{/if}
+	{#if todo.routineId}
+		<RepeatIcon class="text-muted-foreground size-3.5 shrink-0" aria-label="Rutinitas" />
 	{/if}
 	{#if todo.source === 'logged'}
 		<span class="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[11px]">dicatat</span>
@@ -181,7 +217,15 @@
 					</DropdownMenu.Item>
 				{/if}
 			{/if}
+			{#if !todo.done && mode === 'today'}
+				<DropdownMenu.Item onclick={() => focus.start(uid, todo.id, todo.title)}>
+					<TimerIcon /> Mulai fokus {FOCUS_MIN} menit
+				</DropdownMenu.Item>
+			{/if}
 			<DropdownMenu.Item onclick={startEdit}><PencilIcon /> Ubah</DropdownMenu.Item>
+			{#if todo.tag === 'belajar'}
+				<DropdownMenu.Item onclick={openNote}><NotebookPenIcon /> Catatan belajar</DropdownMenu.Item>
+			{/if}
 			{#if !todo.done && mode === 'today'}
 				<DropdownMenu.Item
 					onclick={() => {
@@ -209,3 +253,28 @@
 		</DropdownMenu.Content>
 	</DropdownMenu.Root>
 </div>
+
+<Dialog.Root bind:open={noteOpen}>
+	<Dialog.Content class="sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>Catatan belajar</Dialog.Title>
+			<Dialog.Description>{todo.title}</Dialog.Description>
+		</Dialog.Header>
+		<textarea
+			bind:value={noteDraft}
+			rows="4"
+			maxlength={500}
+			placeholder="Apa yang sudah dipahami? Apa yang masih bingung?"
+			class="bg-muted/60 focus:ring-ring/40 w-full resize-none rounded-2xl p-3 text-sm outline-none focus:ring-2"
+		></textarea>
+		<Dialog.Footer>
+			<Button
+				onclick={() => {
+					setNote(uid, todo.id, noteDraft);
+					noteOpen = false;
+					toast.success('Catatan disimpan');
+				}}>Simpan</Button
+			>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>

@@ -1,15 +1,14 @@
 <script lang="ts">
-	import { ChartColumnIcon, MoonStarIcon, SettingsIcon, ShieldIcon, SparklesIcon, SunIcon } from '@lucide/svelte';
+	import { ChartColumnIcon, GraduationCapIcon, MoonStarIcon, SettingsIcon, SparklesIcon, SunIcon } from '@lucide/svelte';
 	import { page } from '$app/state';
 	import { cn } from '#lib/utils.js';
-	import { session } from '#lib/stores/session.svelte.js';
 
 	const links = $derived([
 		{ href: '/', label: 'Hari Ini', icon: SunIcon },
 		{ href: '/besok', label: 'Besok', icon: MoonStarIcon },
 		{ href: '/rekap', label: 'Rekap', icon: SparklesIcon },
 		{ href: '/statistik', label: 'Statistik', icon: ChartColumnIcon },
-		...(session.isAdmin ? [{ href: '/admin', label: 'Admin', icon: ShieldIcon }] : []),
+		{ href: '/belajar', label: 'Belajar', icon: GraduationCapIcon },
 		{ href: '/pengaturan', label: 'Pengaturan', icon: SettingsIcon }
 	]);
 </script>
