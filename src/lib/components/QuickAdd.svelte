@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CheckIcon, PlusIcon, MoonIcon, CalendarIcon, ClockIcon, HashIcon } from '@lucide/svelte';
+	import { CheckIcon, PlusIcon, MoonIcon, CalendarIcon, ClockIcon, HashIcon, DumbbellIcon } from '@lucide/svelte';
 	import { fly } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
 	import { parseSmart } from '#lib/smart-input.js';
@@ -8,8 +8,7 @@
 	import { formatDay, todayKey } from '#lib/date.js';
 	import { cn } from '#lib/utils.js';
 	import { addTodo, newTodoId } from '#lib/stores/todos.svelte.js';
-	import { jar, resolvedMarbleColor } from '#lib/stores/jar.svelte.js';
-	import { haptic, nextCombo, playComplete, playGolden, praise, rollGolden } from '#lib/feedback.js';
+	import { celebrate } from '#lib/complete.js';
 
 	let {
 		uid,
@@ -26,7 +25,7 @@
 	const tokens = $derived(
 		mode === 'today' && logged ? parsed.tokens.filter((t) => t.kind !== 'date') : parsed.tokens
 	);
-	const ICON = { date: CalendarIcon, duration: ClockIcon, tag: HashIcon };
+	const ICON = { date: CalendarIcon, duration: ClockIcon, tag: HashIcon, weight: DumbbellIcon };
 
 	// While a #tag is being typed, offer the ones already used.
 	const partialTag = $derived(title.match(/(?:^|\s)#([\p{L}\p{N}_-]*)$/u)?.[1] ?? null);
@@ -60,20 +59,14 @@
 		e.preventDefault();
 		if (!title.trim()) return;
 		const p = parsed;
-		const extra = { tag: p.tag, estimateMin: p.estimateMin };
+		const extra = { tag: p.tag, estimateMin: p.estimateMin, weight: p.weight };
 		if (mode === 'today' && logged) {
 			const id = newTodoId(uid);
-			const golden = rollGolden();
-			const combo = nextCombo();
-			playComplete(combo);
-			haptic(12);
-			if (golden) {
-				playGolden();
-				jar.showLabel(praise(), true);
-			} else if (combo >= 2) jar.showLabel(`Combo x${combo}`);
-			const todo = addTodo(uid, { id, title: p.title, date, done: true, source: 'logged', golden, ...extra });
-			const rect = input?.getBoundingClientRect();
-			if (rect) jar.launch(id, rect, resolvedMarbleColor(todo.color, golden), golden);
+			const weight = p.weight ?? 1;
+			// Colour is decided by addTodo; pick the same one up front for the flying marble.
+			const color = p.tag ? tagColor(p.tag) : 1 + Math.floor(Math.random() * 5);
+			const { golden } = celebrate({ id, rect: input?.getBoundingClientRect(), color, weight });
+			addTodo(uid, { id, title: p.title, date, done: true, source: 'logged', golden, color, ...extra });
 		} else {
 			const target = p.date ?? date;
 			addTodo(uid, { title: p.title, date: target, source: 'planned', ...extra });

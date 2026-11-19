@@ -16,6 +16,7 @@ import { toast } from 'svelte-sonner';
 import { db } from '#lib/firebase.js';
 import { fromKey } from '#lib/date.js';
 import { tagColor } from '#lib/tags.js';
+import type { Weight } from '#lib/types.js';
 
 export interface Routine {
 	id: string;
@@ -24,6 +25,7 @@ export interface Routine {
 	days: number[];
 	tag?: string;
 	estimateMin?: number;
+	weight?: Weight;
 	active: boolean;
 }
 
@@ -40,6 +42,7 @@ function fromData(id: string, d: Record<string, unknown>): Routine {
 		days: Array.isArray(d.days) ? (d.days as number[]) : [],
 		tag: d.tag ? String(d.tag) : undefined,
 		estimateMin: d.estimateMin ? Number(d.estimateMin) : undefined,
+		weight: d.weight === undefined ? undefined : (Number(d.weight) as Weight),
 		active: d.active !== false
 	};
 }
@@ -75,6 +78,7 @@ export async function saveRoutine(uid: string, r: Omit<Routine, 'id'>, id?: stri
 	const data: Record<string, unknown> = { title: r.title, days: r.days, active: r.active };
 	if (r.tag) data.tag = r.tag;
 	if (r.estimateMin) data.estimateMin = r.estimateMin;
+	if (r.weight !== undefined) data.weight = r.weight;
 	await setDoc(ref, { ...data, updatedAt: Timestamp.now() });
 }
 
@@ -122,6 +126,7 @@ export async function ensureRoutineTodos(uid: string, date: string, force = fals
 				order: 0,
 				color: r.tag ? tagColor(r.tag) : 1 + Math.floor(Math.random() * 5),
 				golden: false,
+				weight: r.weight ?? 1,
 				routineId: r.id
 			};
 			if (r.tag) todo.tag = r.tag;

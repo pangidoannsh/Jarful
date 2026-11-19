@@ -1,3 +1,5 @@
+import { dropPack } from '#lib/pack.js';
+
 /** Draws the day's recap as a 1080×1350 image for Instagram/WhatsApp stories. */
 
 export interface CardInput {
@@ -6,8 +8,10 @@ export interface CardInput {
 	planned: number;
 	plannedDone: number;
 	streak: number | null;
-	/** Marble colours in jar order (CSS colour strings). */
-	marbles: string[];
+	/** Marbles in jar order: colour and size relative to a light one. */
+	marbles: { color: string; scale: number }[];
+	/** Effort points (ringan 1, sedang 2, berat 3). */
+	effort: number;
 	/** A few finished titles to list. */
 	items: { title: string; color: string }[];
 	perfect: boolean;
@@ -31,7 +35,15 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 	ctx.closePath();
 }
 
-function drawJar(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, marbles: string[], glow: boolean) {
+function drawJar(
+	ctx: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	marbles: { color: string; scale: number }[],
+	glow: boolean
+) {
 	if (glow) {
 		ctx.save();
 		ctx.shadowColor = GOLD;
@@ -56,29 +68,25 @@ function drawJar(ctx: CanvasRenderingContext2D, x: number, y: number, w: number,
 	ctx.stroke();
 	if (glow) ctx.restore();
 
-	// marbles, packed from the bottom
+	// marbles dropped onto the pile; heavier todos are bigger
 	const inner = { x: x + 24, w: w - 48, bottom: gy + gh - 24, top: gy + 30 };
-	const n = marbles.length;
-	const r = n <= 22 ? 30 : n <= 40 ? 23 : n <= 72 ? 17.5 : 13.5;
-	const cols = Math.floor(inner.w / (2 * r));
-	let row = 0;
-	let col = 0;
+	const area = marbles.reduce((sum, m) => sum + m.scale ** 2, 0);
+	const base = area <= 22 ? 30 : area <= 40 ? 23 : area <= 72 ? 17.5 : 13.5;
+	const spots = dropPack(
+		marbles.map((m) => base * m.scale),
+		inner.x,
+		inner.w,
+		inner.bottom
+	);
 	ctx.save();
 	roundRect(ctx, x + 6, gy + 6, w - 12, gh - 12, 42);
 	ctx.clip();
-	for (const color of marbles) {
-		const rowCols = row % 2 ? cols - 1 : cols;
-		if (col >= rowCols) {
-			row++;
-			col = 0;
-		}
-		const used = (row % 2 ? cols - 1 : cols) * 2 * r;
-		const cx = inner.x + (inner.w - used) / 2 + r + col * 2 * r;
-		const cy = inner.bottom - r - row * r * 1.75;
-		if (cy - r < inner.top) break;
+	spots.forEach((p, i) => {
+		if (p.y - p.r < inner.top) return;
+		const { x: cx, y: cy, r } = p;
 		ctx.beginPath();
 		ctx.arc(cx, cy, r - 1, 0, Math.PI * 2);
-		ctx.fillStyle = color;
+		ctx.fillStyle = marbles[i].color;
 		ctx.fill();
 		const g = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.4, 0, cx - r * 0.35, cy - r * 0.4, r);
 		g.addColorStop(0, 'rgba(255,255,255,0.8)');
@@ -86,8 +94,7 @@ function drawJar(ctx: CanvasRenderingContext2D, x: number, y: number, w: number,
 		g.addColorStop(1, 'rgba(255,255,255,0)');
 		ctx.fillStyle = g;
 		ctx.fill();
-		col++;
-	}
+	});
 	ctx.restore();
 	// highlight
 	ctx.strokeStyle = 'rgba(255,255,255,0.55)';
@@ -142,19 +149,20 @@ export async function drawRecapCard(input: CardInput): Promise<Blob> {
 	ctx.fillStyle = MUTED;
 	ctx.font = `400 36px ${sans}`;
 	ctx.fillText(`${input.plannedDone} dari ${input.planned} rencana`, 548, 660);
-	if (input.streak) ctx.fillText(`Streak ${input.streak} hari`, 548, 712);
+	ctx.fillText(`${input.effort} poin usaha`, 548, 712);
+	if (input.streak) ctx.fillText(`Streak ${input.streak} hari`, 548, 764);
 	if (input.perfect) {
 		ctx.fillStyle = GOLD;
-		roundRect(ctx, 548, 740, 300, 64, 32);
+		roundRect(ctx, 548, 792, 300, 64, 32);
 		ctx.fill();
 		ctx.fillStyle = INK;
 		ctx.font = `600 32px ${sans}`;
-		ctx.fillText('Hari sempurna', 578, 784);
+		ctx.fillText('Hari sempurna', 578, 836);
 	}
 
 	// finished items
 	ctx.font = `500 40px ${sans}`;
-	let y = 900;
+	let y = 940;
 	for (const item of input.items.slice(0, 5)) {
 		ctx.beginPath();
 		ctx.arc(96, y - 13, 13, 0, Math.PI * 2);

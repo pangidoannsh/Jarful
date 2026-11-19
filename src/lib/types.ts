@@ -2,6 +2,12 @@ import type { Timestamp } from 'firebase/firestore';
 
 export type TodoSource = 'planned' | 'logged';
 
+/**
+ * Effort weight. 0 = pengingat (a reminder or note: ticks off but adds no marble and
+ * is not counted as productivity), 1 = ringan (default), 2 = sedang, 3 = berat.
+ */
+export type Weight = 0 | 1 | 2 | 3;
+
 export interface Todo {
 	id: string;
 	title: string;
@@ -21,6 +27,8 @@ export interface Todo {
 	tag?: string;
 	/** Estimated minutes, e.g. 30 for "30m". */
 	estimateMin?: number;
+	/** Effort weight; missing on older todos means 1. */
+	weight: Weight;
 	/** Set when the todo was created by a routine. */
 	routineId?: string;
 	/** Minutes spent in the focus timer on this todo. */

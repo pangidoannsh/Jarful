@@ -29,12 +29,22 @@ function tone(freq: number, start: number, dur: number, gain = 0.12, type: Oscil
 	osc.stop(t + dur + 0.02);
 }
 
-/** Short "tik"; each combo step raises the pitch by a whole tone. */
-export function playComplete(combo: number) {
+/**
+ * Short "tik"; each combo step raises the pitch by a whole tone.
+ * Heavier todos sound deeper and add a soft thump.
+ */
+export function playComplete(combo: number, weight = 1) {
 	const step = Math.min(combo - 1, 10);
-	const f = 660 * Math.pow(2, (step * 2) / 12);
+	const f = (660 / (weight === 3 ? 1.5 : weight === 2 ? 1.25 : 1)) * Math.pow(2, (step * 2) / 12);
 	tone(f, 0, 0.14);
 	tone(f * 2, 0.01, 0.08, 0.04, 'sine');
+	if (weight >= 2) tone(weight === 3 ? 110 : 150, 0, 0.22, 0.14, 'sine');
+	if (weight === 3) tone(f * 1.5, 0.08, 0.18, 0.06);
+}
+
+/** A soft, quiet tick for reminders. */
+export function playSoft() {
+	tone(990, 0, 0.07, 0.05, 'sine');
 }
 
 export function playLand() {
@@ -91,7 +101,7 @@ export function prefersReducedMotion() {
 	return typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-export async function confettiBurst(origin?: { x: number; y: number }, big = false) {
+export async function confettiBurst(origin?: { x: number; y: number }, big = false, amount = 1) {
 	if (prefersReducedMotion()) return;
 	const confetti = (await import('canvas-confetti')).default;
 	const colors = ['#e8673a', '#f0a24a', '#e9c14d', '#d4513a', '#c76aa8'];
@@ -106,7 +116,7 @@ export async function confettiBurst(origin?: { x: number; y: number }, big = fal
 		return;
 	}
 	confetti({
-		particleCount: 70,
+		particleCount: Math.round(70 * amount),
 		spread: 75,
 		startVelocity: 32,
 		scalar: 0.9,

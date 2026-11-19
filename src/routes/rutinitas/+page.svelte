@@ -15,6 +15,7 @@
 	import { parseSmart, formatMinutes } from '#lib/smart-input.js';
 	import { addDays, todayKey } from '#lib/date.js';
 	import { tagColor } from '#lib/tags.js';
+	import { weightLabel } from '#lib/weight.js';
 	import { cn } from '#lib/utils.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
@@ -54,6 +55,7 @@
 				days: [...days].sort(),
 				tag: parsed.tag,
 				estimateMin: parsed.estimateMin,
+				weight: parsed.weight,
 				active: true
 			});
 			const today = todayKey();
@@ -80,14 +82,13 @@
 	</p>
 
 	<form onsubmit={add} class="bg-card ring-border mt-6 space-y-4 rounded-3xl p-5 ring-1">
-		<Input bind:value={title} placeholder="contoh: Minum air 2 liter #sehat" class="h-11" maxlength={140} />
-		{#if parsed.tag || parsed.estimateMin}
-			<p class="text-muted-foreground -mt-2 text-xs">
-				{parsed.tag ? `#${parsed.tag}` : ''}{parsed.tag && parsed.estimateMin ? ' · ' : ''}{parsed.estimateMin
-					? formatMinutes(parsed.estimateMin)
-					: ''}
-			</p>
+		<Input bind:value={title} placeholder="contoh: Minum creatine ~" class="h-11" maxlength={140} />
+		{#if parsed.tokens.length}
+			<p class="text-muted-foreground -mt-2 text-xs">{parsed.tokens.map((t) => t.label).join(' · ')}</p>
 		{/if}
+		<p class="text-muted-foreground -mt-2 text-xs">
+			Tips: akhiri dengan <b>~</b> untuk pengingat kecil tanpa kelereng (misalnya "Minum creatine ~"), atau <b>!</b> / <b>!!</b> untuk tugas sedang / berat.
+		</p>
 		<div class="flex flex-wrap gap-1.5">
 			{#each PRESETS as p (p.l)}
 				<button
@@ -132,6 +133,7 @@
 							<span style="color: var(--marble-{tagColor(r.tag)})">#{r.tag}</span>
 						{/if}
 						{#if r.estimateMin}<span>{formatMinutes(r.estimateMin)}</span>{/if}
+						{#if r.weight !== undefined && r.weight !== 1}<span>{weightLabel(r.weight)}</span>{/if}
 					</p>
 				</div>
 				<Switch

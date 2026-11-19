@@ -23,7 +23,8 @@
 
 	const s = $derived.by(() => {
 		if (!todos) return null;
-		const done = todos.filter((t) => t.done);
+		const done = todos.filter((t) => t.done && t.weight !== 0);
+		const effortWeek = done.filter((t) => t.date >= monday).reduce((sum, t) => sum + t.weight, 0);
 		const thisWeek = done.filter((t) => t.date >= monday).length;
 		// Same span of last week, so Wednesday is compared with Wednesday.
 		const span = Math.round((fromKey(today).getTime() - fromKey(monday).getTime()) / 864e5);
@@ -41,9 +42,9 @@
 		const tags = new Map<string, number>();
 		recent.forEach((t) => t.tag && tags.set(t.tag, (tags.get(t.tag) ?? 0) + 1));
 		const topTags = [...tags.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-		const planned = todos.filter((t) => t.source === 'planned' && t.date >= from28 && t.date < today);
+		const planned = todos.filter((t) => t.source === 'planned' && t.weight !== 0 && t.date >= from28 && t.date < today);
 		const rate = planned.length ? Math.round((planned.filter((t) => t.done).length / planned.length) * 100) : null;
-		return { thisWeek, lastWeek, perDay, hours, peak, hasHours: recent.some((t) => t.doneAt), topTags, rate };
+		return { effortWeek, thisWeek, lastWeek, perDay, hours, peak, hasHours: recent.some((t) => t.doneAt), topTags, rate };
 	});
 	const maxDay = $derived(Math.max(1, ...(s?.perDay.map((d) => d.n) ?? [1])));
 	const maxHour = $derived(Math.max(1, ...(s?.hours ?? [1])));
@@ -59,7 +60,7 @@
 			<div>
 				<h2 class="text-muted-foreground text-[11px] font-bold tracking-widest uppercase">Minggu ini</h2>
 				<p class="font-display mt-1 text-4xl font-semibold tabular-nums">{s.thisWeek}</p>
-				<p class="text-muted-foreground text-sm">todo selesai sejak Senin</p>
+				<p class="text-muted-foreground text-sm">todo selesai sejak Senin · <b class="text-foreground">{s.effortWeek}</b> poin usaha</p>
 			</div>
 			{#if delta !== null}
 				<p

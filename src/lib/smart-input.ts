@@ -1,7 +1,9 @@
 import { addDays, fromKey } from '#lib/date.js';
 
+import type { Weight } from '#lib/types.js';
+
 export interface SmartToken {
-	kind: 'date' | 'duration' | 'tag';
+	kind: 'date' | 'duration' | 'tag' | 'weight';
 	label: string;
 }
 
@@ -10,6 +12,7 @@ export interface SmartParse {
 	date?: string;
 	tag?: string;
 	estimateMin?: number;
+	weight?: Weight;
 	tokens: SmartToken[];
 }
 
@@ -38,6 +41,7 @@ export function formatMinutes(min: number) {
  *   "olahraga 30m #sehat besok" → title "olahraga", 30 minutes, tag "sehat", tomorrow.
  * Dates: hari ini, besok, lusa, or a weekday name (the next one after today).
  * Durations: 30m, 45 menit, 1j, 1.5 jam, 2h.
+ * Weight: ! = sedang, !! = berat, ~ = pengingat (no marble, not counted).
  */
 export function parseSmart(text: string, today: string): SmartParse {
 	let rest = ` ${text} `;
@@ -49,6 +53,13 @@ export function parseSmart(text: string, today: string): SmartParse {
 		out.tag = tag[1].toLowerCase();
 		tokens.push({ kind: 'tag', label: `#${out.tag}` });
 		rest = rest.replace(tag[0], ' ');
+	}
+
+	const weight = rest.match(/\s(!!|!|~)(?=\s)/);
+	if (weight) {
+		out.weight = weight[1] === '!!' ? 3 : weight[1] === '!' ? 2 : 0;
+		tokens.push({ kind: 'weight', label: weight[1] === '!!' ? 'Berat' : weight[1] === '!' ? 'Sedang' : 'Pengingat' });
+		rest = rest.replace(weight[0], ' ');
 	}
 
 	const dur = rest.match(/\s(\d+(?:[.,]\d+)?)\s?(m|mnt|menit|j|jam|h)(?=\s)/i);

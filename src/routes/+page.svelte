@@ -38,8 +38,11 @@
 	const items = $derived(day?.items ?? []);
 	const pending = $derived(day?.pending ?? []);
 	const done = $derived(day?.done ?? []);
+	/** Finished work that became marbles (reminders excluded). */
+	const marbles = $derived(done.filter((t) => t.weight !== 0));
+	const remindersLeft = $derived(pending.filter((t) => t.weight === 0));
 	const focus = $derived(day?.focus ?? null);
-	const listPending = $derived(pending.filter((t) => !t.isFocus));
+	const listPending = $derived(pending.filter((t) => !t.isFocus && t.weight !== 0));
 	const plannedCount = $derived(day?.planned.length ?? 0);
 	const plannedDone = $derived(day?.plannedDone ?? 0);
 	const allDone = $derived(plannedCount > 0 && plannedDone === plannedCount);
@@ -76,9 +79,9 @@
 			<p class="text-muted-foreground mt-2 text-sm">
 				{#if plannedCount}
 					<span class="text-foreground font-semibold">{plannedDone} dari {plannedCount}</span> rencana
-					selesai{done.length > plannedDone ? ` · ${done.length - plannedDone} dicatat` : ''}
-				{:else if done.length}
-					<span class="text-foreground font-semibold">{done.length}</span> hal produktif tercatat
+					selesai{marbles.length > plannedDone ? ` · ${marbles.length - plannedDone} dicatat` : ''}
+				{:else if marbles.length}
+					<span class="text-foreground font-semibold">{marbles.length}</span> hal produktif tercatat
 				{:else}
 					Toples masih kosong. Ayo isi kelereng pertama.
 				{/if}
@@ -93,7 +96,7 @@
 		<Jar
 			register
 			full={allDone}
-			marbles={done.map((t) => ({ id: t.id, color: t.color, golden: t.golden }))}
+			marbles={marbles.map((t) => ({ id: t.id, color: t.color, golden: t.golden, weight: t.weight }))}
 			class="h-32 w-26 shrink-0"
 		/>
 	</section>
@@ -139,6 +142,21 @@
 			</p>
 		{/if}
 
+		{#if remindersLeft.length}
+			<section>
+				<h2 class="text-muted-foreground flex items-center gap-1.5 px-1 text-[11px] font-bold tracking-widest uppercase">
+					Pengingat
+				</h2>
+				<ul class="mt-1">
+					{#each remindersLeft as t (t.id)}
+						<li animate:flip={{ duration: 350 }} in:fly={{ y: 16, duration: 250 }} out:fade={{ duration: 150 }}>
+							<TodoItem todo={t} {uid} dayItems={items} />
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
+
 		{#if listPending.length}
 			<section>
 				<h2 class="text-muted-foreground px-1 text-[11px] font-bold tracking-widest uppercase">
@@ -175,6 +193,10 @@
 				<p class="mt-2">
 					Tulis rencana hari ini di bawah, atau nyalakan <b>Sudah selesai</b> untuk mencatat hal
 					produktif yang baru saja kamu lakukan.
+				</p>
+				<p class="mt-3 text-xs">
+					Tambahkan <b>!</b> atau <b>!!</b> untuk tugas sedang/berat (kelereng lebih besar), atau
+					<b>~</b> untuk pengingat kecil seperti "minum creatine ~".
 				</p>
 			</div>
 		{/if}

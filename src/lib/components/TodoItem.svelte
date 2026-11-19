@@ -10,7 +10,9 @@
 		ArrowLeftIcon,
 		RepeatIcon,
 		TimerIcon,
-		NotebookPenIcon
+		NotebookPenIcon,
+		BellIcon,
+		DumbbellIcon
 	} from '@lucide/svelte';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -20,18 +22,9 @@
 	import { cn } from '#lib/utils.js';
 	import { addDays, todayKey } from '#lib/date.js';
 	import { prefs } from '#lib/stores/prefs.svelte.js';
-	import { jar, resolvedMarbleColor } from '#lib/stores/jar.svelte.js';
-	import { moveTodo, removeTodo, renameTodo, setDone, setFocus, setNote } from '#lib/stores/todos.svelte.js';
-	import {
-		confettiBurst,
-		haptic,
-		nextCombo,
-		playComplete,
-		playFanfare,
-		playGolden,
-		praise,
-		rollGolden
-	} from '#lib/feedback.js';
+	import { moveTodo, removeTodo, renameTodo, setDone, setFocus, setNote, setWeight } from '#lib/stores/todos.svelte.js';
+	import { celebrate } from '#lib/complete.js';
+	import { WEIGHTS } from '#lib/weight.js';
 	import type { Todo } from '#lib/types.js';
 	import { formatMinutes } from '#lib/smart-input.js';
 	import { tagColor } from '#lib/tags.js';
@@ -59,42 +52,28 @@
 		noteOpen = true;
 	}
 	let draft = $state('');
+	const reminder = $derived(todo.weight === 0);
 
 	function toggle() {
 		if (todo.done) {
 			setDone(uid, todo, false);
 			return;
 		}
-		const rect = box?.getBoundingClientRect();
-		const combo = nextCombo();
-		const golden = rollGolden();
 		popping = false;
 		requestAnimationFrame(() => (popping = true));
-
-		playComplete(combo);
-		haptic(golden ? [10, 50, 14] : 12);
-		if (golden) {
-			playGolden();
-			jar.showLabel(praise(), true);
-		} else if (combo >= 2) {
-			jar.showLabel(`Combo x${combo}`);
-		}
-		if (rect) jar.launch(todo.id, rect, resolvedMarbleColor(todo.color, golden), golden);
+		const { golden } = celebrate({
+			id: todo.id,
+			rect: box?.getBoundingClientRect(),
+			color: todo.color,
+			weight: todo.weight,
+			isFocus: todo.isFocus
+		});
 		setDone(uid, todo, true, golden);
 		if (todo.tag === 'belajar' && !todo.note) {
 			toast('Apa yang kamu pelajari?', {
 				description: 'Catatan singkat membantu Saran Belajar lebih tepat.',
 				action: { label: 'Tulis catatan', onClick: openNote }
 			});
-		}
-
-		if (todo.isFocus && rect) {
-			playFanfare();
-			confettiBurst({
-				x: (rect.left + rect.width / 2) / window.innerWidth,
-				y: (rect.top + rect.height / 2) / window.innerHeight
-			});
-			toast.success('Fokus hari ini tuntas!');
 		}
 	}
 
@@ -127,15 +106,22 @@
 		onclick={toggle}
 		aria-label={todo.done ? `Batalkan selesai: ${todo.title}` : `Selesaikan: ${todo.title}`}
 		class={cn(
-			'grid size-6 shrink-0 place-items-center rounded-lg border-2 transition-colors',
+			'grid shrink-0 place-items-center border-2 transition-colors',
+			reminder ? 'mx-0.5 size-5 rounded-full' : 'size-6 rounded-lg',
 			todo.done
-				? 'border-primary bg-primary/20 text-primary'
-				: 'border-foreground/30 hover:border-primary hover:bg-primary/10',
+				? reminder
+					? 'border-muted-foreground/50 bg-muted text-muted-foreground'
+					: 'border-primary bg-primary/20 text-primary'
+				: reminder
+					? 'border-foreground/25 border-dashed hover:border-foreground/50'
+					: todo.weight === 3
+						? 'border-primary/70 hover:bg-primary/10'
+						: 'border-foreground/30 hover:border-primary hover:bg-primary/10',
 			popping && 'animate-pop'
 		)}
 	>
 		{#if todo.done}
-			<CheckIcon class="size-4" strokeWidth={3} />
+			<CheckIcon class={reminder ? 'size-3' : 'size-4'} strokeWidth={3} />
 		{/if}
 	</button>
 
@@ -157,7 +143,8 @@
 				type="button"
 				ondblclick={startEdit}
 				class={cn(
-					'block w-full truncate text-left text-[15px] leading-snug',
+					'block w-full truncate text-left leading-snug',
+					reminder ? 'text-muted-foreground text-sm' : 'text-[15px]',
 					todo.done && 'text-muted-foreground',
 					todo.done && prefs.strike && 'decoration-primary line-through decoration-2',
 					todo.isFocus && !todo.done && 'font-semibold'
@@ -168,6 +155,15 @@
 		{/if}
 	</div>
 
+	{#if reminder}
+		<BellIcon class="text-muted-foreground/70 size-3.5 shrink-0" aria-label="Pengingat" />
+	{:else if todo.weight === 3}
+		<span class="text-primary flex shrink-0 items-center gap-0.5 text-[11px] font-semibold" title="Bobot berat">
+			<DumbbellIcon class="size-3.5" />Berat
+		</span>
+	{:else if todo.weight === 2}
+		<DumbbellIcon class="text-primary/70 size-3.5 shrink-0" aria-label="Bobot sedang" />
+	{/if}
 	{#if focus.session?.todoId === todo.id && focus.session.phase === 'focus'}
 		<TimerIcon class="text-primary size-4 shrink-0 animate-pulse" aria-label="Sedang fokus" />
 	{:else if todo.focusMin}
@@ -206,7 +202,7 @@
 			<EllipsisIcon class="size-4" />
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content align="end" class="w-52">
-			{#if !todo.done}
+			{#if !todo.done && !reminder}
 				{#if todo.isFocus}
 					<DropdownMenu.Item onclick={() => setFocus(uid, dayItems, null)}>
 						<StarOffIcon /> Hapus dari Fokus Utama
@@ -217,7 +213,7 @@
 					</DropdownMenu.Item>
 				{/if}
 			{/if}
-			{#if !todo.done && mode === 'today'}
+			{#if !todo.done && mode === 'today' && !reminder}
 				<DropdownMenu.Item onclick={() => focus.start(uid, todo.id, todo.title)}>
 					<TimerIcon /> Mulai fokus {FOCUS_MIN} menit
 				</DropdownMenu.Item>
@@ -246,6 +242,15 @@
 					<ArrowLeftIcon /> Kerjakan hari ini
 				</DropdownMenu.Item>
 			{/if}
+			<DropdownMenu.Separator />
+			<DropdownMenu.Label class="text-muted-foreground px-2 py-1 text-[11px] font-semibold uppercase">Bobot</DropdownMenu.Label>
+			{#each WEIGHTS as w (w.value)}
+				<DropdownMenu.Item onclick={() => setWeight(uid, todo, w.value)}>
+					{#if w.value === 0}<BellIcon />{:else}<DumbbellIcon class={w.value === 1 ? 'opacity-30' : w.value === 2 ? 'opacity-60' : ''} />{/if}
+					<span class="flex-1">{w.label}</span>
+					{#if todo.weight === w.value}<CheckIcon class="text-primary" />{/if}
+				</DropdownMenu.Item>
+			{/each}
 			<DropdownMenu.Separator />
 			<DropdownMenu.Item variant="destructive" onclick={() => removeTodo(uid, todo)}>
 				<Trash2Icon /> Hapus

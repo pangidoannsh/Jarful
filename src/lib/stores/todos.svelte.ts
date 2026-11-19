@@ -21,7 +21,7 @@ import { toast } from 'svelte-sonner';
 import { db } from '#lib/firebase.js';
 import { addDays } from '#lib/date.js';
 import { rememberTag, tagColor } from '#lib/tags.js';
-import type { Todo, TodoSource } from '#lib/types.js';
+import type { Todo, TodoSource, Weight } from '#lib/types.js';
 
 const todosCol = (uid: string) => collection(db, 'users', uid, 'todos');
 const todoDoc = (uid: string, id: string) => doc(db, 'users', uid, 'todos', id);
@@ -45,6 +45,7 @@ function fromSnap(id: string, data: Record<string, unknown>): Todo {
 		order: Number(data.order ?? 0),
 		color: Number(data.color ?? 1),
 		golden: Boolean(data.golden),
+		weight: (data.weight === undefined ? 1 : Number(data.weight)) as Weight,
 		tag: data.tag ? String(data.tag) : undefined,
 		estimateMin: data.estimateMin ? Number(data.estimateMin) : undefined,
 		routineId: data.routineId ? String(data.routineId) : undefined,
@@ -70,7 +71,8 @@ export class DayTodos {
 			.filter((t) => t.done)
 			.sort((a, b) => (b.doneAt?.toMillis() ?? 0) - (a.doneAt?.toMillis() ?? 0))
 	);
-	planned = $derived(this.items.filter((t) => t.source === 'planned'));
+	/** Planned work, without reminders. */
+	planned = $derived(this.items.filter((t) => t.source === 'planned' && t.weight !== 0));
 	plannedDone = $derived(this.planned.filter((t) => t.done).length);
 	focus = $derived(this.items.find((t) => t.isFocus) ?? null);
 
@@ -120,6 +122,8 @@ export function addTodo(
 		golden?: boolean;
 		tag?: string;
 		estimateMin?: number;
+		weight?: Weight;
+		color?: number;
 	}
 ) {
 	const id = input.id ?? newTodoId(uid);
@@ -133,8 +137,9 @@ export function addTodo(
 		source: input.source ?? 'planned',
 		isFocus: false,
 		order: Date.now(),
-		color: input.tag ? tagColor(input.tag) : 1 + Math.floor(Math.random() * 5),
-		golden: Boolean(input.golden)
+		color: input.color ?? (input.tag ? tagColor(input.tag) : 1 + Math.floor(Math.random() * 5)),
+		golden: input.weight === 0 ? false : Boolean(input.golden),
+		weight: input.weight ?? 1
 	};
 	if (input.tag) {
 		todo.tag = input.tag;
@@ -143,7 +148,7 @@ export function addTodo(
 	if (input.estimateMin) todo.estimateMin = input.estimateMin;
 	const batch = writeBatch(db);
 	batch.set(todoDoc(uid, id), todo);
-	if (todo.done) bumpDay(batch, uid, todo.date, 1);
+	if (todo.done && todo.weight !== 0) bumpDay(batch, uid, todo.date, 1);
 	batch.commit().catch(fail);
 	return { id, ...todo } as Todo;
 }
@@ -156,7 +161,18 @@ export function setDone(uid: string, todo: Todo, done: boolean, golden = false) 
 		doneAt: done ? Timestamp.now() : null,
 		golden: done ? golden : false
 	});
-	bumpDay(batch, uid, todo.date, done ? 1 : -1);
+	if (todo.weight !== 0) bumpDay(batch, uid, todo.date, done ? 1 : -1);
+	batch.commit().catch(fail);
+}
+
+/** Changes a todo's weight; a finished one moves in or out of the day's marble count. */
+export function setWeight(uid: string, todo: Todo, weight: Weight) {
+	if (todo.weight === weight) return;
+	const batch = writeBatch(db);
+	batch.update(todoDoc(uid, todo.id), { weight, ...(weight === 0 ? { golden: false } : {}) });
+	if (todo.done && (todo.weight === 0) !== (weight === 0)) {
+		bumpDay(batch, uid, todo.date, weight === 0 ? -1 : 1);
+	}
 	batch.commit().catch(fail);
 }
 
@@ -183,7 +199,7 @@ export function removeTodo(uid: string, todo: Todo) {
 	const data = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
 	const batch = writeBatch(db);
 	batch.delete(todoDoc(uid, id));
-	if (todo.done) bumpDay(batch, uid, todo.date, -1);
+	if (todo.done && todo.weight !== 0) bumpDay(batch, uid, todo.date, -1);
 	// A routine's todo that was deleted on purpose is not created again for that day.
 	if (todo.routineId) {
 		batch.set(dayDoc(uid, todo.date), { skippedRoutines: arrayUnion(todo.routineId) }, { merge: true });
@@ -198,7 +214,7 @@ export function removeTodo(uid: string, todo: Todo) {
 				if (todo.routineId) {
 					undo.set(dayDoc(uid, todo.date), { skippedRoutines: arrayRemove(todo.routineId) }, { merge: true });
 				}
-				if (todo.done) bumpDay(undo, uid, todo.date, 1);
+				if (todo.done && todo.weight !== 0) bumpDay(undo, uid, todo.date, 1);
 				undo.commit().catch(fail);
 			}
 		}
@@ -225,7 +241,7 @@ export async function loadCarryOver(uid: string, today: string) {
 	const snap = await getDocs(q);
 	return snap.docs
 		.map((d) => fromSnap(d.id, d.data()))
-		.filter((t) => !t.done && t.source === 'planned')
+		.filter((t) => !t.done && t.source === 'planned' && t.weight !== 0)
 		.sort((a, b) => b.date.localeCompare(a.date) || a.order - b.order);
 }
 
@@ -276,7 +292,8 @@ export async function loadStreak(uid: string, today: string) {
 	return currentStreak(await loadDayCounts(uid, addDays(today, -400)), today);
 }
 
-const STATS_VERSION = 1;
+// 2: reminders (weight 0) are no longer counted.
+const STATS_VERSION = 2;
 
 /**
  * One-time rebuild of the per-day counts from existing todos (data made before stats existed).
@@ -288,6 +305,7 @@ export async function ensureDayCounts(uid: string) {
 	const snap = await getDocs(query(todosCol(uid), where('done', '==', true)));
 	const counts = new Map<string, number>();
 	snap.docs.forEach((d) => {
+		if (d.data().weight === 0) return;
 		const date = String(d.data().date);
 		counts.set(date, (counts.get(date) ?? 0) + 1);
 	});

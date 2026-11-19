@@ -2,11 +2,15 @@
 	import { bounceOut } from 'svelte/easing';
 	import { jar, marbleColor } from '#lib/stores/jar.svelte.js';
 	import { cn } from '#lib/utils.js';
+	import { marbleScale } from '#lib/weight.js';
+	import { dropPack } from '#lib/pack.js';
+	import type { Weight } from '#lib/types.js';
 
 	interface Marble {
 		id: string;
 		color: number;
 		golden?: boolean;
+		weight?: Weight;
 	}
 
 	let {
@@ -65,31 +69,16 @@
 		for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
 		return h;
 	}
+	// Marbles are "dropped" in order and settle on the pile. Heavier todos make bigger
+	// marbles, and every marble shrinks as the jar fills up.
 	const placed = $derived.by(() => {
-		const r = radiusFor(visible.length);
-		const cols = Math.floor(WIDTH / (2 * r));
-		const rowH = r * 1.75;
-		const out: { m: Marble; x: number; y: number; r: number }[] = [];
-		let row = 0;
-		let col = 0;
-		for (const m of visible) {
-			const odd = row % 2 === 1;
-			const n = odd ? cols - 1 : cols;
-			if (col >= n) {
-				row++;
-				col = 0;
-			}
-			const odd2 = row % 2 === 1;
-			const used = (odd2 ? cols - 1 : cols) * 2 * r;
-			const x0 = LEFT + (WIDTH - used) / 2 + r;
-			const h = hash(m.id);
-			const x = x0 + col * 2 * r + ((h % 7) / 7) * 0.9;
-			const y = BOTTOM - r - row * rowH + (((h >> 3) % 5) / 5) * 0.6;
-			if (y - r < TOP) break;
-			out.push({ m, x, y, r });
-			col++;
-		}
-		return out;
+		const area = visible.reduce((sum, m) => sum + marbleScale(m.weight) ** 2, 0);
+		const base = radiusFor(Math.ceil(area));
+		const radii = visible.map((m) => base * marbleScale(m.weight));
+		const jitter = visible.map((m) => ((hash(m.id) % 7) / 7 - 0.5) * 0.6);
+		return dropPack(radii, LEFT, WIDTH, BOTTOM, jitter)
+			.map((p, i) => ({ m: visible[i], ...p }))
+			.filter((p) => p.y - p.r >= TOP);
 	});
 
 	function drop(_node: Element, { delay = 0 }: { delay?: number } = {}) {

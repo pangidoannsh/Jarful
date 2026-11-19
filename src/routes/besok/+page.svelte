@@ -27,8 +27,9 @@
 	const list = $derived(
 		[...items].sort((a, b) => Number(b.isFocus) - Number(a.isFocus) || a.order - b.order)
 	);
-	const totalMin = $derived(items.reduce((sum, t) => sum + (t.estimateMin ?? 0), 0));
-	const tooMany = $derived(items.length > 7 || totalMin > 8 * 60);
+	const work = $derived(items.filter((t) => t.weight !== 0));
+	const totalMin = $derived(work.reduce((sum, t) => sum + (t.estimateMin ?? 0), 0));
+	const tooMany = $derived(work.length > 7 || totalMin > 8 * 60);
 	const hasFocus = $derived(items.some((t) => t.isFocus));
 </script>
 
@@ -59,7 +60,7 @@
 		{#if list.length}
 			<section>
 				<h2 class="text-muted-foreground px-1 text-[11px] font-bold tracking-widest uppercase">
-					Rencana · {items.length} item{totalMin ? ` · estimasi ${formatMinutes(totalMin)}` : ''}
+					Rencana · {work.length} item{items.length > work.length ? ` + ${items.length - work.length} pengingat` : ''}{totalMin ? ` · estimasi ${formatMinutes(totalMin)}` : ''}
 				</h2>
 				<ul class="mt-1">
 					{#each list as t (t.id)}
@@ -81,11 +82,11 @@
 			<div class="flex gap-3 rounded-2xl bg-amber-500/10 p-4 text-sm" in:fade>
 				<TriangleAlertIcon class="mt-0.5 size-4 shrink-0 text-amber-600" />
 				<p>
-					<b>{items.length} rencana{totalMin ? `, sekitar ${formatMinutes(totalMin)}` : ''}</b> mungkin terlalu banyak untuk satu hari. Rencana yang realistis
+					<b>{work.length} rencana{totalMin ? `, sekitar ${formatMinutes(totalMin)}` : ''}</b> mungkin terlalu banyak untuk satu hari. Rencana yang realistis
 					lebih sering selesai, dan itu jauh lebih memuaskan. Pertimbangkan memindah sebagian.
 				</p>
 			</div>
-		{:else if items.length >= 3}
+		{:else if work.length >= 3}
 			<p class="text-good px-1 text-sm font-medium">Ukurannya pas. Selamat beristirahat!</p>
 		{/if}
 

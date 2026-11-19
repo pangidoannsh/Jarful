@@ -18,6 +18,7 @@
 	import AppNav from '#lib/components/AppNav.svelte';
 	import ShareRecap from '#lib/components/ShareRecap.svelte';
 	import { resolvedMarbleColor } from '#lib/stores/jar.svelte.js';
+	import { marbleScale } from '#lib/weight.js';
 	import type { DayNote } from '#lib/types.js';
 
 	const uid = $derived(session.user!.uid);
@@ -32,7 +33,11 @@
 		return d.start();
 	});
 
-	const done = $derived(day?.done ?? []);
+	const allDone = $derived(day?.done ?? []);
+	/** Marbles only: reminders are ticked off but are not productivity. */
+	const done = $derived(allDone.filter((t) => t.weight !== 0));
+	const reminders = $derived(allDone.length - done.length);
+	const effort = $derived(done.reduce((sum, t) => sum + t.weight, 0));
 	const timeline = $derived([...done].reverse());
 	const planned = $derived(day?.planned.length ?? 0);
 	const plannedDone = $derived(day?.plannedDone ?? 0);
@@ -128,7 +133,7 @@
 		<section class="mt-6 flex flex-col items-center">
 			<Jar
 				full={perfect}
-				marbles={done.map((t) => ({ id: t.id, color: t.color, golden: t.golden }))}
+				marbles={done.map((t) => ({ id: t.id, color: t.color, golden: t.golden, weight: t.weight }))}
 				class="h-56 w-46"
 			/>
 			<p class="font-display text-primary mt-4 text-7xl leading-none font-semibold tabular-nums">
@@ -137,6 +142,9 @@
 			<p class="mt-1 font-semibold">todo selesai</p>
 			<p class="text-muted-foreground text-sm">
 				{plannedDone} dari {planned} rencana · {logged} dicatat{golden ? ` · ${golden} emas` : ''}
+			</p>
+			<p class="text-muted-foreground text-sm">
+				<b class="text-foreground">{effort}</b> poin usaha{reminders ? ` · ${reminders} pengingat dicentang` : ''}
 			</p>
 			<div class="mt-4 flex flex-wrap justify-center gap-2 text-sm">
 				{#if streak !== null}
@@ -266,7 +274,8 @@
 					plannedDone,
 					streak: isToday ? streak : null,
 					perfect,
-					marbles: done.map((t) => resolvedMarbleColor(t.color, t.golden)),
+					marbles: done.map((t) => ({ color: resolvedMarbleColor(t.color, t.golden), scale: marbleScale(t.weight) })),
+					effort,
 					items: timeline.map((t) => ({ title: t.title, color: resolvedMarbleColor(t.color, t.golden) }))
 				})}
 			/>

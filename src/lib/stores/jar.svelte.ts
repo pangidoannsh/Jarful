@@ -15,14 +15,14 @@ class JarState {
 		this.label = { id: Date.now(), text, gold };
 	}
 
-	launch(id: string, from: DOMRect, color: string, golden: boolean) {
+	launch(id: string, from: DOMRect, color: string, golden: boolean, scale = 1) {
 		const target = this.target;
 		if (!target || prefersReducedMotion() || typeof document === 'undefined') {
 			this.bumps++;
 			return;
 		}
 		const to = target.getBoundingClientRect();
-		const size = 18;
+		const size = Math.round(18 * scale);
 		const sx = from.left + from.width / 2 - size / 2;
 		const sy = from.top + from.height / 2 - size / 2;
 		const ex = to.left + to.width / 2 - size / 2;
