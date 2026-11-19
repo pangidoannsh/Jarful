@@ -27,7 +27,7 @@
 	import type { AdminUser } from '#lib/types.js';
 
 	$effect(() => {
-		if (session.ready && !session.isAdmin) goto('/', { replaceState: true });
+		if (session.ready && !session.isAdmin) goto('/', { replace: true });
 	});
 
 	let users = $state<AdminUser[]>([]);

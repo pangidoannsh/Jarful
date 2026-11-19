@@ -31,10 +31,10 @@
 
 	$effect(() => {
 		if (!session.ready || !firebaseConfigured) return;
-		if (!session.user && !isPublic) goto('/login', { replaceState: true });
-		else if (session.user && isPublic) goto('/', { replaceState: true });
+		if (!session.user && !isPublic) goto('/login', { replace: true });
+		else if (session.user && isPublic) goto('/', { replace: true });
 		else if (session.user && session.profile?.mustChangePassword && path !== '/ganti-password')
-			goto('/ganti-password', { replaceState: true });
+			goto('/ganti-password', { replace: true });
 	});
 
 	const canShow = $derived(

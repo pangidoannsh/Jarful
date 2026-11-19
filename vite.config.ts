@@ -4,6 +4,20 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+	// Pre-bundle these so the dev server never has to re-optimize (and reload) mid-navigation.
+	optimizeDeps: {
+		include: [
+			'firebase/app',
+			'firebase/auth',
+			'firebase/firestore',
+			'bits-ui',
+			'svelte-sonner',
+			'canvas-confetti',
+			'clsx',
+			'tailwind-merge',
+			'tailwind-variants'
+		]
+	},
 	plugins: [
 		tailwindcss(),
 		sveltekit({

@@ -27,6 +27,7 @@ class Session {
 		onAuthStateChanged(auth, async (u) => {
 			this.#profileUnsub?.();
 			this.#profileUnsub = null;
+			if (u) this.ready = false; // wait for claims and profile before routing
 			this.user = u;
 			if (!u) {
 				this.isAdmin = false;

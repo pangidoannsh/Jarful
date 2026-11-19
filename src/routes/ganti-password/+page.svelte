@@ -32,7 +32,7 @@
 			await updatePassword(user, next);
 			await updateDoc(doc(db, 'users', user.uid), { mustChangePassword: false });
 			toast.success('Password berhasil diganti');
-			goto('/', { replaceState: true });
+			goto('/', { replace: true });
 		} catch (err) {
 			const code = err instanceof FirebaseError ? err.code : '';
 			error =
