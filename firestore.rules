@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    // Only accounts created from the admin panel (member claim) or admins get in.
+    function isMember() {
+      return request.auth != null
+        && (request.auth.token.member == true || request.auth.token.admin == true);
+    }
+
+    // Each person reads and writes only their own data.
+    match /users/{uid}/{document=**} {
+      allow read, write: if isMember() && request.auth.uid == uid;
+    }
+
+    // Written by the server only (used by Saran Belajar later).
+    match /system/aiStatus {
+      allow read: if isMember();
+      allow write: if false;
+    }
+  }
+}

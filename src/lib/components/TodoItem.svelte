@@ -1,0 +1,204 @@
+<script lang="ts">
+	import {
+		CheckIcon,
+		EllipsisIcon,
+		PencilIcon,
+		StarIcon,
+		StarOffIcon,
+		Trash2Icon,
+		ArrowRightIcon,
+		ArrowLeftIcon
+	} from '@lucide/svelte';
+	import { toast } from 'svelte-sonner';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import { cn } from '#lib/utils.js';
+	import { addDays, todayKey } from '#lib/date.js';
+	import { prefs } from '#lib/stores/prefs.svelte.js';
+	import { jar, resolvedMarbleColor } from '#lib/stores/jar.svelte.js';
+	import { moveTodo, removeTodo, renameTodo, setDone, setFocus } from '#lib/stores/todos.svelte.js';
+	import {
+		confettiBurst,
+		haptic,
+		nextCombo,
+		playComplete,
+		playFanfare,
+		playGolden,
+		praise,
+		rollGolden
+	} from '#lib/feedback.js';
+	import type { Todo } from '#lib/types.js';
+
+	let {
+		todo,
+		uid,
+		dayItems,
+		mode = 'today'
+	}: {
+		todo: Todo;
+		uid: string;
+		/** All todos of the same day, needed to keep a single Fokus Utama. */
+		dayItems: Todo[];
+		mode?: 'today' | 'plan';
+	} = $props();
+
+	let box = $state<HTMLButtonElement | null>(null);
+	let popping = $state(false);
+	let editing = $state(false);
+	let draft = $state('');
+
+	function toggle() {
+		if (todo.done) {
+			setDone(uid, todo.id, false);
+			return;
+		}
+		const rect = box?.getBoundingClientRect();
+		const combo = nextCombo();
+		const golden = rollGolden();
+		popping = false;
+		requestAnimationFrame(() => (popping = true));
+
+		playComplete(combo);
+		haptic(golden ? [10, 50, 14] : 12);
+		if (golden) {
+			playGolden();
+			jar.showLabel(praise(), true);
+		} else if (combo >= 2) {
+			jar.showLabel(`Combo x${combo}`);
+		}
+		if (rect) jar.launch(todo.id, rect, resolvedMarbleColor(todo.color, golden), golden);
+		setDone(uid, todo.id, true, golden);
+
+		if (todo.isFocus && rect) {
+			playFanfare();
+			confettiBurst({
+				x: (rect.left + rect.width / 2) / window.innerWidth,
+				y: (rect.top + rect.height / 2) / window.innerHeight
+			});
+			toast.success('Fokus hari ini tuntas!');
+		}
+	}
+
+	function startEdit() {
+		draft = todo.title;
+		editing = true;
+	}
+
+	function saveEdit() {
+		const t = draft.trim();
+		if (t && t !== todo.title) renameTodo(uid, todo.id, t);
+		editing = false;
+	}
+
+	function focusInput(node: HTMLInputElement) {
+		node.focus();
+		node.select();
+	}
+</script>
+
+<div
+	class={cn(
+		'group flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors',
+		todo.isFocus && !todo.done ? 'bg-primary/8' : 'hover:bg-muted/60'
+	)}
+>
+	<button
+		bind:this={box}
+		type="button"
+		onclick={toggle}
+		aria-label={todo.done ? `Batalkan selesai: ${todo.title}` : `Selesaikan: ${todo.title}`}
+		class={cn(
+			'grid size-6 shrink-0 place-items-center rounded-lg border-2 transition-colors',
+			todo.done
+				? 'border-primary bg-primary/20 text-primary'
+				: 'border-foreground/30 hover:border-primary hover:bg-primary/10',
+			popping && 'animate-pop'
+		)}
+	>
+		{#if todo.done}
+			<CheckIcon class="size-4" strokeWidth={3} />
+		{/if}
+	</button>
+
+	<div class="min-w-0 flex-1">
+		{#if editing}
+			<input
+				use:focusInput
+				bind:value={draft}
+				onblur={saveEdit}
+				onkeydown={(e) => {
+					if (e.key === 'Enter') saveEdit();
+					if (e.key === 'Escape') editing = false;
+				}}
+				class="w-full rounded-md bg-transparent text-[15px] outline-none"
+				maxlength={140}
+			/>
+		{:else}
+			<button
+				type="button"
+				ondblclick={startEdit}
+				class={cn(
+					'block w-full truncate text-left text-[15px] leading-snug',
+					todo.done && 'text-muted-foreground',
+					todo.done && prefs.strike && 'decoration-primary line-through decoration-2',
+					todo.isFocus && !todo.done && 'font-semibold'
+				)}
+			>
+				{todo.title}
+			</button>
+		{/if}
+	</div>
+
+	{#if todo.source === 'logged'}
+		<span class="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[11px]">dicatat</span>
+	{/if}
+	{#if todo.isFocus}
+		<StarIcon class="text-primary size-4 shrink-0" fill="currentColor" />
+	{/if}
+
+	<DropdownMenu.Root>
+		<DropdownMenu.Trigger
+			class="text-muted-foreground hover:bg-muted grid size-8 shrink-0 place-items-center rounded-lg opacity-60 transition group-hover:opacity-100"
+			aria-label="Pilihan"
+		>
+			<EllipsisIcon class="size-4" />
+		</DropdownMenu.Trigger>
+		<DropdownMenu.Content align="end" class="w-52">
+			{#if !todo.done}
+				{#if todo.isFocus}
+					<DropdownMenu.Item onclick={() => setFocus(uid, dayItems, null)}>
+						<StarOffIcon /> Hapus dari Fokus Utama
+					</DropdownMenu.Item>
+				{:else}
+					<DropdownMenu.Item onclick={() => setFocus(uid, dayItems, todo.id)}>
+						<StarIcon /> Jadikan Fokus Utama
+					</DropdownMenu.Item>
+				{/if}
+			{/if}
+			<DropdownMenu.Item onclick={startEdit}><PencilIcon /> Ubah</DropdownMenu.Item>
+			{#if !todo.done && mode === 'today'}
+				<DropdownMenu.Item
+					onclick={() => {
+						moveTodo(uid, todo.id, addDays(todayKey(), 1));
+						toast('Dipindah ke besok');
+					}}
+				>
+					<ArrowRightIcon /> Pindah ke besok
+				</DropdownMenu.Item>
+			{/if}
+			{#if mode === 'plan'}
+				<DropdownMenu.Item
+					onclick={() => {
+						moveTodo(uid, todo.id, todayKey());
+						toast('Dipindah ke hari ini');
+					}}
+				>
+					<ArrowLeftIcon /> Kerjakan hari ini
+				</DropdownMenu.Item>
+			{/if}
+			<DropdownMenu.Separator />
+			<DropdownMenu.Item variant="destructive" onclick={() => removeTodo(uid, todo)}>
+				<Trash2Icon /> Hapus
+			</DropdownMenu.Item>
+		</DropdownMenu.Content>
+	</DropdownMenu.Root>
+</div>
