@@ -82,6 +82,17 @@
 		editing = true;
 	}
 
+	// Picking "Ubah" in the menu: the menu returns focus to its ⋯ button as it closes,
+	// which would blur (and close) the edit field at once. Open the field only after
+	// the menu has closed, and stop the menu from taking the focus back.
+	let editAfterMenu = false;
+	function onMenuCloseFocus(e: Event) {
+		if (!editAfterMenu) return;
+		e.preventDefault();
+		editAfterMenu = false;
+		startEdit();
+	}
+
 	function saveEdit() {
 		const t = draft.trim();
 		if (t && t !== todo.title) renameTodo(uid, todo.id, t);
@@ -89,8 +100,10 @@
 	}
 
 	function focusInput(node: HTMLInputElement) {
-		node.focus();
-		node.select();
+		requestAnimationFrame(() => {
+			node.focus();
+			node.select();
+		});
 	}
 </script>
 
@@ -201,7 +214,7 @@
 		>
 			<EllipsisIcon class="size-4" />
 		</DropdownMenu.Trigger>
-		<DropdownMenu.Content align="end" class="w-52">
+		<DropdownMenu.Content align="end" class="w-52" onCloseAutoFocus={onMenuCloseFocus}>
 			{#if !todo.done && !reminder}
 				{#if todo.isFocus}
 					<DropdownMenu.Item onclick={() => setFocus(uid, dayItems, null)}>
@@ -218,7 +231,7 @@
 					<TimerIcon /> Mulai fokus {FOCUS_MIN} menit
 				</DropdownMenu.Item>
 			{/if}
-			<DropdownMenu.Item onclick={startEdit}><PencilIcon /> Ubah</DropdownMenu.Item>
+			<DropdownMenu.Item onclick={() => (editAfterMenu = true)}><PencilIcon /> Ubah</DropdownMenu.Item>
 			{#if todo.tag === 'belajar'}
 				<DropdownMenu.Item onclick={openNote}><NotebookPenIcon /> Catatan belajar</DropdownMenu.Item>
 			{/if}
