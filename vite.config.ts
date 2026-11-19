@@ -1,9 +1,14 @@
 import tailwindcss from '@tailwindcss/vite';
 import adapter from '@sveltejs/adapter-vercel';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+	// Server routes read secrets from process.env (as on Vercel). Locally, fill it from .env;
+	// variables already set in the shell or on Vercel win.
+	process.env = { ...loadEnv(mode, process.cwd(), ''), ...process.env };
+
+	return {
 	// Pre-bundle these so the dev server never has to re-optimize (and reload) mid-navigation.
 	optimizeDeps: {
 		include: [
@@ -29,4 +34,5 @@ export default defineConfig({
 			adapter: adapter()
 		})
 	]
+};
 });
