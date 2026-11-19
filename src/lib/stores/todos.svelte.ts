@@ -8,6 +8,7 @@ import {
 	increment,
 	arrayUnion,
 	arrayRemove,
+	deleteField,
 	onSnapshot,
 	query,
 	setDoc,
@@ -182,6 +183,45 @@ export function setNote(uid: string, id: string, note: string) {
 
 export function addFocusMinutes(uid: string, id: string, minutes: number) {
 	updateDoc(todoDoc(uid, id), { focusMin: increment(minutes) }).catch(fail);
+}
+
+/**
+ * Applies an edit typed with smart input: title, #tag, duration, weight and (for an
+ * unfinished todo) a new day. Fields that were removed from the text are cleared.
+ */
+export function updateTodo(
+	uid: string,
+	todo: Todo,
+	next: { title: string; tag?: string; estimateMin?: number; weight?: Weight; date?: string }
+) {
+	const weight = next.weight ?? 1;
+	const patch: Record<string, unknown> = {
+		title: next.title.trim(),
+		tag: next.tag ?? deleteField(),
+		estimateMin: next.estimateMin ?? deleteField(),
+		weight
+	};
+	if ((next.tag ?? '') !== (todo.tag ?? '')) {
+		patch.color = next.tag ? tagColor(next.tag) : 1 + Math.floor(Math.random() * 5);
+		if (next.tag) rememberTag(next.tag);
+	}
+	if (weight === 0) {
+		patch.golden = false;
+		patch.isFocus = false;
+	}
+	const moving = !todo.done && next.date && next.date !== todo.date;
+	if (moving) {
+		patch.date = next.date;
+		patch.isFocus = false;
+		patch.order = Date.now();
+	}
+	const batch = writeBatch(db);
+	batch.update(todoDoc(uid, todo.id), patch);
+	if (todo.done && (todo.weight === 0) !== (weight === 0)) {
+		bumpDay(batch, uid, todo.date, weight === 0 ? -1 : 1);
+	}
+	batch.commit().catch(fail);
+	return { moved: moving ? next.date : null };
 }
 
 export function renameTodo(uid: string, id: string, title: string) {

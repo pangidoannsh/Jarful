@@ -97,3 +97,17 @@ export function parseSmart(text: string, today: string): SmartParse {
 	out.title = title || text.trim();
 	return out;
 }
+
+/** Writes a todo back as editable text, so its tag, duration and weight can be changed by typing. */
+export function toEditableText(t: { title: string; tag?: string; estimateMin?: number; weight?: Weight }) {
+	const parts = [t.title];
+	if (t.tag) parts.push(`#${t.tag}`);
+	if (t.estimateMin) {
+		const m = t.estimateMin;
+		parts.push(m % 60 === 0 ? `${m / 60}j` : m > 60 ? `${(m / 60).toFixed(1).replace(/\.0$/, '')}j` : `${m}m`);
+	}
+	if (t.weight === 0) parts.push('~');
+	else if (t.weight === 2) parts.push('!');
+	else if (t.weight === 3) parts.push('!!');
+	return parts.join(' ');
+}

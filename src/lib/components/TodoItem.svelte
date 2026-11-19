@@ -20,13 +20,13 @@
 	import { toast } from 'svelte-sonner';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { cn } from '#lib/utils.js';
-	import { addDays, todayKey } from '#lib/date.js';
+	import { addDays, formatDay, todayKey } from '#lib/date.js';
 	import { prefs } from '#lib/stores/prefs.svelte.js';
-	import { moveTodo, removeTodo, renameTodo, setDone, setFocus, setNote, setWeight } from '#lib/stores/todos.svelte.js';
+	import { moveTodo, removeTodo, setDone, setFocus, setNote, setWeight, updateTodo } from '#lib/stores/todos.svelte.js';
 	import { celebrate } from '#lib/complete.js';
 	import { WEIGHTS } from '#lib/weight.js';
 	import type { Todo } from '#lib/types.js';
-	import { formatMinutes } from '#lib/smart-input.js';
+	import { formatMinutes, parseSmart, toEditableText } from '#lib/smart-input.js';
 	import { tagColor } from '#lib/tags.js';
 
 	let {
@@ -78,7 +78,7 @@
 	}
 
 	function startEdit() {
-		draft = todo.title;
+		draft = toEditableText(todo);
 		editing = true;
 	}
 
@@ -94,10 +94,22 @@
 	}
 
 	function saveEdit() {
-		const t = draft.trim();
-		if (t && t !== todo.title) renameTodo(uid, todo.id, t);
+		if (!editing) return;
 		editing = false;
+		const text = draft.trim();
+		if (!text || text === toEditableText(todo)) return;
+		const p = parseSmart(text, todayKey());
+		const { moved } = updateTodo(uid, todo, {
+			title: p.title,
+			tag: p.tag,
+			estimateMin: p.estimateMin,
+			weight: p.weight,
+			date: p.date
+		});
+		if (moved) toast(`Dipindah ke ${formatDay(moved)}`);
 	}
+
+	const editTokens = $derived(editing ? parseSmart(draft, todayKey()).tokens : []);
 
 	function focusInput(node: HTMLInputElement) {
 		requestAnimationFrame(() => {
@@ -149,8 +161,14 @@
 					if (e.key === 'Escape') editing = false;
 				}}
 				class="w-full rounded-md bg-transparent text-[15px] outline-none"
-				maxlength={140}
+				maxlength={160}
+				aria-label="Ubah todo"
 			/>
+			{#if editTokens.length}
+				<p class="text-muted-foreground mt-0.5 text-[11px]">{editTokens.map((t) => t.label).join(' · ')}</p>
+			{:else}
+				<p class="text-muted-foreground mt-0.5 text-[11px]">Tambahkan #tag, durasi (30m), atau ! / !! / ~ · Enter simpan · Esc batal</p>
+			{/if}
 		{:else}
 			<button
 				type="button"
