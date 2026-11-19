@@ -1,6 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 import { FieldValue } from 'firebase-admin/firestore';
-import { adminAuth, adminDb, requireAdmin, tempPassword } from '#lib/server/admin.js';
+import { adminAuth, adminDb, adminFailure, requireAdmin, tempPassword } from '#lib/server/admin.js';
 import { USERNAME_DOMAIN, USERNAME_PATTERN, normalizeUsername, usernameToEmail } from '#lib/username.js';
 import type { AdminUser } from '#lib/types.js';
 import type { RequestHandler } from './$types';
@@ -8,7 +8,9 @@ import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ request }) => {
 	await requireAdmin(request);
-	const { users } = await adminAuth().listUsers(1000);
+	const { users } = await adminAuth()
+		.listUsers(1000)
+		.catch((e) => adminFailure(e, 'Memuat pengguna'));
 	const mine = users.filter((u) => u.email?.endsWith(`@${USERNAME_DOMAIN}`));
 	const refs = mine.map((u) => adminDb().doc(`users/${u.uid}`));
 	const profiles = refs.length ? await adminDb().getAll(...refs) : [];
@@ -56,6 +58,6 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch (e) {
 		const code = (e as { code?: string }).code;
 		if (code === 'auth/email-already-exists') error(409, 'Username sudah dipakai.');
-		throw e;
+		adminFailure(e, 'Membuat akun');
 	}
 };

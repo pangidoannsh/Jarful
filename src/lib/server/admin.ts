@@ -7,12 +7,34 @@ import { getMessaging } from 'firebase-admin/messaging';
 
 let app: App | null = null;
 
+/**
+ * Accepts the private key however it was pasted: with or without surrounding quotes,
+ * with literal "\n" sequences or real line breaks.
+ */
+function normalizeKey(raw: string | undefined) {
+	if (!raw) return undefined;
+	let k = raw.trim();
+	if ((k.startsWith('"') && k.endsWith('"')) || (k.startsWith("'") && k.endsWith("'"))) k = k.slice(1, -1);
+	return k.replace(/\\n/g, '\n');
+}
+
+/** Turns a Firebase Admin failure into a readable message for the admin panel. */
+export function adminFailure(e: unknown, action: string): never {
+	const code = (e as { code?: string }).code ?? '';
+	const message = (e as Error)?.message ?? String(e);
+	console.error(`[admin] ${action}`, code, message);
+	const hint = /private key|PEM|DECODER|asn1/i.test(message)
+		? ' Periksa FIREBASE_ADMIN_PRIVATE_KEY: salin utuh dari file JSON, termasuk -----BEGIN/END PRIVATE KEY-----.'
+		: '';
+	error(500, `${action} gagal: ${code || message}.${hint}`);
+}
+
 /** Firebase Admin, configured from FIREBASE_ADMIN_* server-only environment variables. */
 export function adminApp() {
 	if (app) return app;
 	const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
 	const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-	const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n');
+	const privateKey = normalizeKey(process.env.FIREBASE_ADMIN_PRIVATE_KEY);
 	if (!projectId || !clientEmail || !privateKey) {
 		error(500, 'Server belum dikonfigurasi: isi FIREBASE_ADMIN_* di environment variables.');
 	}
