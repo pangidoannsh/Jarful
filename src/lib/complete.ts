@@ -12,6 +12,7 @@ import {
 	rollGolden
 } from '#lib/feedback.js';
 import { marbleScale } from '#lib/weight.js';
+import { playCelebration } from '#lib/sounds.js';
 import type { Weight } from '#lib/types.js';
 
 /**
@@ -29,6 +30,7 @@ export function celebrate(opts: { id: string; rect?: DOMRect; color: number; wei
 	const combo = nextCombo();
 	const golden = rollGolden();
 	playComplete(combo, weight);
+	playCelebration(weight, opts.isFocus);
 	haptic(golden ? [10, 50, 14] : weight === 3 ? [16, 40, 26] : weight === 2 ? 18 : 12);
 	if (golden) {
 		playGolden();

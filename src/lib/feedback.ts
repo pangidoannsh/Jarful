@@ -55,8 +55,8 @@ export function playGolden() {
 	[0, 4, 7, 12].forEach((s, i) => tone(880 * Math.pow(2, s / 12), i * 0.06, 0.25, 0.08, 'sine'));
 }
 
-export function playFanfare() {
-	[0, 4, 7, 12, 16].forEach((s, i) => tone(523 * Math.pow(2, s / 12), i * 0.09, 0.4, 0.09));
+export function playFanfare(volume = 1) {
+	[0, 4, 7, 12, 16].forEach((s, i) => tone(523 * Math.pow(2, s / 12), i * 0.09, 0.4, 0.09 * volume + 0.0002));
 }
 
 export function haptic(pattern: number | number[] = 10) {

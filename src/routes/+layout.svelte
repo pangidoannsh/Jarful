@@ -12,6 +12,7 @@
 	import { focus } from '#lib/stores/focus.svelte.js';
 	import FocusBar from '#lib/components/FocusBar.svelte';
 	import CommandPalette from '#lib/components/CommandPalette.svelte';
+	import { preloadCelebration } from '#lib/sounds.js';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
@@ -20,9 +21,18 @@
 	session.start();
 	device.init();
 	focus.init();
+	preloadCelebration();
 
 	$effect(() => {
-		void [prefs.sound, prefs.haptic, prefs.strike, prefs.theme];
+		void [
+			prefs.sound,
+			prefs.haptic,
+			prefs.strike,
+			prefs.theme,
+			prefs.celebration,
+			prefs.celebrationVolume,
+			prefs.celebrationWhen
+		];
 		prefs.save();
 	});
 

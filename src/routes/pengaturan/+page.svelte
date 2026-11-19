@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { BellRingIcon, DownloadIcon, RepeatIcon, KeyRoundIcon, LogOutIcon, ShieldIcon, SmartphoneIcon } from '@lucide/svelte';
+	import { BellRingIcon, DownloadIcon, RepeatIcon, PartyPopperIcon, PlayIcon, KeyRoundIcon, LogOutIcon, ShieldIcon, SmartphoneIcon } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { device } from '#lib/stores/device.svelte.js';
+	import { CUSTOM_SOUNDS, SOUND_OPTIONS, playSoundOption, preloadCelebration } from '#lib/sounds.js';
 	import { session } from '#lib/stores/session.svelte.js';
 	import { prefs, type ThemePref } from '#lib/stores/prefs.svelte.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
@@ -78,6 +79,74 @@
 			</div>
 			<Switch bind:checked={prefs.sound} onCheckedChange={(v) => v && playComplete(1)} />
 		</label>
+		{#if prefs.sound}
+			<div class="space-y-3 p-5">
+				<div class="flex gap-3">
+					<PartyPopperIcon class="text-primary mt-0.5 size-5 shrink-0" />
+					<div>
+						<p class="font-medium">Suara perayaan</p>
+						<p class="text-muted-foreground text-sm">Diputar tepat setelah bunyi "tik" saat todo selesai. Pengingat tidak ikut.</p>
+					</div>
+				</div>
+				<div class="flex gap-2">
+					<select
+						bind:value={prefs.celebration}
+						onchange={() => {
+							preloadCelebration();
+							playSoundOption(prefs.celebration);
+						}}
+						class="bg-muted h-10 min-w-0 flex-1 rounded-xl px-3 text-sm outline-none"
+						aria-label="Pilih suara perayaan"
+					>
+						{#each SOUND_OPTIONS as o (o.id)}
+							<option value={o.id}>{o.label}</option>
+						{/each}
+					</select>
+					<Button
+						variant="outline"
+						size="icon"
+						class="size-10 rounded-xl"
+						aria-label="Dengarkan"
+						disabled={prefs.celebration === 'none'}
+						onclick={() => playSoundOption(prefs.celebration)}
+					>
+						<PlayIcon class="size-4" />
+					</Button>
+				</div>
+				{#if prefs.celebration !== 'none'}
+					<div class="bg-muted grid grid-cols-2 gap-1 rounded-full p-1">
+						{#each [{ v: 'every', l: 'Setiap selesai' }, { v: 'big', l: 'Tugas berat & Fokus' }] as w (w.v)}
+							<button
+								class={cn(
+									'rounded-full py-2 text-sm font-medium transition',
+									prefs.celebrationWhen === w.v ? 'bg-card shadow-sm' : 'text-muted-foreground'
+								)}
+								onclick={() => (prefs.celebrationWhen = w.v as 'every' | 'big')}>{w.l}</button
+							>
+						{/each}
+					</div>
+					<label class="flex items-center gap-3 text-sm">
+						<span class="text-muted-foreground w-16">Volume</span>
+						<input
+							type="range"
+							min="0"
+							max="1"
+							step="0.05"
+							bind:value={prefs.celebrationVolume}
+							onchange={() => playSoundOption(prefs.celebration)}
+							class="accent-primary flex-1"
+						/>
+						<span class="w-10 text-right tabular-nums">{Math.round(prefs.celebrationVolume * 100)}%</span>
+					</label>
+				{/if}
+				{#if !CUSTOM_SOUNDS.length && session.isAdmin}
+					<p class="text-muted-foreground bg-muted/60 rounded-xl p-3 text-xs">
+						Untuk developer: taruh file .mp3/.ogg/.wav di <code>src/lib/assets/sounds/</code>, lalu build
+						ulang. Semua file di sana otomatis muncul di daftar ini.
+					</p>
+				{/if}
+			</div>
+		{/if}
 		<label class="flex items-center justify-between gap-4 p-5">
 			<div>
 				<p class="font-medium">Getar</p>
