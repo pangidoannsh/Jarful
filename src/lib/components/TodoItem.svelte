@@ -12,7 +12,8 @@
 		TimerIcon,
 		NotebookPenIcon,
 		BellIcon,
-		DumbbellIcon
+		DumbbellIcon,
+		ClockIcon
 	} from '@lucide/svelte';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -190,7 +191,7 @@
 		<BellIcon class="text-muted-foreground/70 size-3.5 shrink-0" aria-label="Pengingat" />
 	{:else if todo.weight === 3}
 		<span class="text-primary flex shrink-0 items-center gap-0.5 text-[11px] font-semibold" title="Bobot berat">
-			<DumbbellIcon class="size-3.5" />Berat
+			<DumbbellIcon class="size-3.5" /><span class="hidden sm:inline">Berat</span>
 		</span>
 	{:else if todo.weight === 2}
 		<DumbbellIcon class="text-primary/70 size-3.5 shrink-0" aria-label="Bobot sedang" />
@@ -203,7 +204,12 @@
 		</span>
 	{/if}
 	{#if todo.estimateMin}
-		<span class="text-muted-foreground hidden text-[11px] tabular-nums sm:inline">{formatMinutes(todo.estimateMin)}</span>
+		<span
+			class="bg-muted text-muted-foreground flex shrink-0 items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap tabular-nums"
+			title="Estimasi waktu"
+		>
+			<ClockIcon class="size-3" />{formatMinutes(todo.estimateMin)}
+		</span>
 	{/if}
 	{#if todo.tag}
 		<span
