@@ -12,6 +12,7 @@
 	import QuickAdd from '#lib/components/QuickAdd.svelte';
 	import AppNav from '#lib/components/AppNav.svelte';
 	import CarryOver from '#lib/components/CarryOver.svelte';
+	import SkippedRoutines from '#lib/components/SkippedRoutines.svelte';
 	import { ensureRoutineTodos } from '#lib/stores/routines.svelte.js';
 
 	const uid = $derived(session.user!.uid);
@@ -117,6 +118,7 @@
 		{/if}
 
 		<CarryOver {uid} {today} target={today} />
+		<SkippedRoutines {uid} date={today} />
 
 		{#if focus}
 			<section

@@ -9,6 +9,7 @@
 	import QuickAdd from '#lib/components/QuickAdd.svelte';
 	import AppNav from '#lib/components/AppNav.svelte';
 	import CarryOver from '#lib/components/CarryOver.svelte';
+	import SkippedRoutines from '#lib/components/SkippedRoutines.svelte';
 	import { ensureRoutineTodos } from '#lib/stores/routines.svelte.js';
 	import { formatMinutes } from '#lib/smart-input.js';
 
@@ -65,6 +66,7 @@
 
 	<div class="mt-6 space-y-4">
 		<CarryOver {uid} today={tomorrow} target={tomorrow} title="Belum selesai, bawa ke besok?" />
+		<SkippedRoutines {uid} date={tomorrow} />
 
 		{#if list.length}
 			<section>
