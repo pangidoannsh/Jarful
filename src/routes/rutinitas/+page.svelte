@@ -145,7 +145,8 @@
 					class="text-muted-foreground hover:text-destructive grid size-8 place-items-center rounded-lg"
 					aria-label="Hapus rutinitas"
 					onclick={() => {
-						if (confirm(`Hapus rutinitas "${r.title}"?`)) deleteRoutine(uid, r.id);
+						if (confirm(`Hapus rutinitas "${r.title}"? Todo-nya yang belum dikerjakan (hari ini dan seterusnya) ikut dihapus. Riwayat yang sudah selesai tetap ada.`))
+							deleteRoutine(uid, r.id);
 					}}
 				>
 					<Trash2Icon class="size-4" />

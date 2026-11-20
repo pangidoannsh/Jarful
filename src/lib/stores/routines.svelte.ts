@@ -10,11 +10,12 @@ import {
 	Timestamp,
 	updateDoc,
 	where,
+	writeBatch,
 	type Unsubscribe
 } from 'firebase/firestore';
 import { toast } from 'svelte-sonner';
 import { db } from '#lib/firebase.js';
-import { fromKey } from '#lib/date.js';
+import { addDays, fromKey, todayKey } from '#lib/date.js';
 import { tagColor } from '#lib/tags.js';
 import type { Weight } from '#lib/types.js';
 
@@ -82,12 +83,45 @@ export async function saveRoutine(uid: string, r: Omit<Routine, 'id'>, id?: stri
 	await setDoc(ref, { ...data, updatedAt: Timestamp.now() });
 }
 
-export function setRoutineActive(uid: string, id: string, active: boolean) {
-	updateDoc(doc(col(uid), id), { active }).catch(() => toast.error('Gagal menyimpan'));
+/**
+ * Removes a routine's todos from today onward that are not done yet. Finished ones stay,
+ * because they are part of the user's history (marbles, streaks, recap).
+ */
+async function removeUpcomingTodos(uid: string, routineId: string) {
+	const today = todayKey();
+	const snap = await getDocs(query(collection(db, 'users', uid, 'todos'), where('routineId', '==', routineId)));
+	const stale = snap.docs.filter((d) => !d.data().done && String(d.data().date) >= today);
+	for (let i = 0; i < stale.length; i += 400) {
+		const batch = writeBatch(db);
+		stale.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+		await batch.commit();
+	}
+	return stale.length;
 }
 
-export function deleteRoutine(uid: string, id: string) {
-	deleteDoc(doc(col(uid), id)).catch(() => toast.error('Gagal menghapus'));
+export async function setRoutineActive(uid: string, id: string, active: boolean) {
+	try {
+		await updateDoc(doc(col(uid), id), { active });
+		if (active) {
+			// Bring it back on today's and tomorrow's lists right away.
+			const today = todayKey();
+			await Promise.all([ensureRoutineTodos(uid, today, true), ensureRoutineTodos(uid, addDays(today, 1), true)]);
+		} else {
+			await removeUpcomingTodos(uid, id);
+		}
+	} catch {
+		toast.error('Gagal menyimpan');
+	}
+}
+
+export async function deleteRoutine(uid: string, id: string) {
+	try {
+		await deleteDoc(doc(col(uid), id));
+		const n = await removeUpcomingTodos(uid, id);
+		if (n) toast(`Rutinitas dihapus beserta ${n} todo yang belum dikerjakan`);
+	} catch {
+		toast.error('Gagal menghapus');
+	}
 }
 
 export const routineTodoId = (routineId: string, date: string) => `rt-${routineId}-${date}`;
@@ -109,6 +143,19 @@ export async function ensureRoutineTodos(uid: string, date: string, force = fals
 			getDoc(doc(db, 'users', uid, 'days', date))
 		]);
 		const skipped = new Set<string>((day.data()?.skippedRoutines as string[] | undefined) ?? []);
+
+		// Tidy up: unfinished todos for this day from routines that were deleted or paused.
+		const activeIds = new Set(routines.docs.map((d) => d.id));
+		const dayTodos = await getDocs(query(collection(db, 'users', uid, 'todos'), where('date', '==', date)));
+		const orphans = dayTodos.docs.filter((d) => {
+			const t = d.data();
+			return t.routineId && !t.done && !activeIds.has(String(t.routineId));
+		});
+		if (orphans.length) {
+			const batch = writeBatch(db);
+			orphans.forEach((d) => batch.delete(d.ref));
+			await batch.commit();
+		}
 		for (const snap of routines.docs) {
 			const r = fromData(snap.id, snap.data());
 			if (!r.days.includes(weekday) || skipped.has(r.id)) continue;
