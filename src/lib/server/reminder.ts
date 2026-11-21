@@ -87,10 +87,15 @@ export async function sendNotifications(kind: NotifyKind, onlyUid?: string, test
 		: await db.collectionGroup('devices').get();
 
 	const byUser = new Map<string, Device[]>();
+	let flagOff = 0;
 	for (const d of snap.docs) {
 		const data = d.data();
 		const uid = d.ref.parent.parent?.id;
-		if (!uid || !data.token || (!test && !data[flag])) continue;
+		if (!uid || !data.token) continue;
+		if (!test && !data[flag]) {
+			flagOff++;
+			continue;
+		}
 		const list = byUser.get(uid) ?? [];
 		list.push({ uid, ref: d.ref, token: String(data.token) });
 		byUser.set(uid, list);
@@ -135,7 +140,8 @@ export async function sendNotifications(kind: NotifyKind, onlyUid?: string, test
 			})
 		);
 	}
-	return { users: byUser.size, sent, removed, skipped, errors };
+	// devicesTotal / flagOff / skipped (nothing to say that day) explain a run with sent = 0.
+	return { users: byUser.size, devicesTotal: snap.size, flagOff, sent, removed, skipped, errors };
 }
 
 /** The evening reminder (kept for the existing cron route). */

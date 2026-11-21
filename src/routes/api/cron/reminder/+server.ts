@@ -6,7 +6,16 @@ import type { RequestHandler } from './$types';
 // "Authorization: Bearer <CRON_SECRET>" when the CRON_SECRET variable is set.
 export const GET: RequestHandler = async ({ request }) => {
 	const secret = process.env.CRON_SECRET;
-	if (!secret) error(500, 'CRON_SECRET belum diisi');
-	if (request.headers.get('authorization') !== `Bearer ${secret}`) error(401, 'Unauthorized');
-	return json(await sendReminders());
+	if (!secret) {
+		console.error('[cron evening] CRON_SECRET belum diisi di Environment Variables');
+		error(500, 'CRON_SECRET belum diisi');
+	}
+	if (request.headers.get('authorization') !== `Bearer ${secret}`) {
+		console.error('[cron evening] ditolak: header Authorization tidak cocok dengan CRON_SECRET');
+		error(401, 'Unauthorized');
+	}
+	const result = await sendReminders();
+	// Shows in Vercel → Logs, so a run that sent nothing explains itself.
+	console.log('[cron evening]', JSON.stringify(result));
+	return json(result);
 };
