@@ -17,6 +17,7 @@ import { toast } from 'svelte-sonner';
 import { db } from '#lib/firebase.js';
 import { addDays, fromKey, todayKey } from '#lib/date.js';
 import { tagColor } from '#lib/tags.js';
+import { isScheduled } from '#lib/schedule.js';
 import type { Weight } from '#lib/types.js';
 
 export interface Routine {
@@ -67,19 +68,7 @@ export class RoutineList {
 	}
 }
 
-/**
- * Whether a routine appears on a date. A monthly date past the end of a short month
- * (say the 31st in November) falls on that month's last day.
- */
-export function isScheduled(r: { days?: number[]; monthDays?: number[] }, date: string) {
-	const d = fromKey(date);
-	if (r.monthDays?.length) {
-		const dom = d.getDate();
-		const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-		return r.monthDays.some((m) => m === dom || (m > last && dom === last));
-	}
-	return (r.days ?? []).includes(d.getDay());
-}
+export { isScheduled };
 
 export function describeSchedule(r: Pick<Routine, 'days' | 'monthDays'>) {
 	if (r.monthDays?.length) return `Tiap tgl ${[...r.monthDays].sort((a, b) => a - b).join(', ')}`;

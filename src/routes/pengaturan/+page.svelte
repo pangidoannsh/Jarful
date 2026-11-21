@@ -242,8 +242,8 @@
 				<div>
 					<p class="font-medium">Pengingat pagi</p>
 					<p class="text-muted-foreground text-sm">
-						Sekitar jam 06.00 WIB: hanya todo dan pengingat yang kamu beri tanggal (diketik seperti
-						<b>25/11</b> atau <b>besok</b>, atau dipilih lewat ikon kalender). Tidak dikirim kalau tidak ada.
+						Sekitar jam 06.00 WIB: semua pengingat (<b>~</b>) hari itu, termasuk dari rutinitas, ditambah todo
+						yang kamu beri tanggal (misalnya <b>25/11</b> atau lewat ikon kalender). Tidak dikirim kalau tidak ada.
 					</p>
 				</div>
 			</div>
