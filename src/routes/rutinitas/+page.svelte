@@ -8,7 +8,7 @@
 		WEEK_ORDER,
 		deleteRoutine,
 		ensureRoutineTodos,
-		describeDays,
+		describeSchedule,
 		saveRoutine,
 		setRoutineActive
 	} from '#lib/stores/routines.svelte.js';
@@ -32,6 +32,12 @@
 
 	let title = $state('');
 	let days = $state<number[]>([1, 2, 3, 4, 5, 6, 0]);
+	let kind = $state<'weekly' | 'monthly'>('weekly');
+	let monthDays = $state<number[]>([]);
+	function toggleMonthDay(d: number) {
+		monthDays = monthDays.includes(d) ? monthDays.filter((x) => x !== d) : [...monthDays, d];
+	}
+	const ready = $derived(kind === 'weekly' ? days.length > 0 : monthDays.length > 0);
 	let saving = $state(false);
 	const parsed = $derived(parseSmart(title, todayKey()));
 
@@ -47,12 +53,13 @@
 
 	async function add(e: SubmitEvent) {
 		e.preventDefault();
-		if (!parsed.title.trim() || !days.length) return;
+		if (!parsed.title.trim() || !ready) return;
 		saving = true;
 		try {
 			await saveRoutine(uid, {
 				title: parsed.title,
-				days: [...days].sort(),
+				days: kind === 'weekly' ? [...days].sort() : [],
+				monthDays: kind === 'monthly' ? [...monthDays].sort((a, b) => a - b) : undefined,
 				tag: parsed.tag,
 				estimateMin: parsed.estimateMin,
 				weight: parsed.weight,
@@ -62,6 +69,7 @@
 			await Promise.all([ensureRoutineTodos(uid, today, true), ensureRoutineTodos(uid, addDays(today, 1), true)]);
 			toast.success('Rutinitas ditambahkan ke daftar harianmu');
 			title = '';
+			monthDays = [];
 		} catch {
 			toast.error('Gagal menyimpan rutinitas');
 		} finally {
@@ -89,34 +97,62 @@
 		<p class="text-muted-foreground -mt-2 text-xs">
 			Tips: akhiri dengan <b>~</b> untuk pengingat kecil tanpa kelereng (misalnya "Minum creatine ~"), atau <b>!</b> / <b>!!</b> untuk tugas sedang / berat.
 		</p>
+		<div class="bg-muted grid grid-cols-2 gap-1 rounded-full p-1">
+			{#each [{ v: 'weekly', l: 'Mingguan' }, { v: 'monthly', l: 'Bulanan (tanggal)' }] as k (k.v)}
+				<button
+					type="button"
+					class={cn('rounded-full py-2 text-sm font-medium transition', kind === k.v ? 'bg-card shadow-sm' : 'text-muted-foreground')}
+					onclick={() => (kind = k.v as 'weekly' | 'monthly')}>{k.l}</button
+				>
+			{/each}
+		</div>
+		{#if kind === 'weekly'}
 		<div class="flex flex-wrap gap-1.5">
-			{#each PRESETS as p (p.l)}
-				<button
-					type="button"
-					class={cn(
-						'rounded-full border px-3 py-1 text-xs font-medium',
-						[...days].sort().join() === [...p.d].sort().join()
-							? 'border-primary bg-primary/10 text-primary'
-							: 'text-muted-foreground'
-					)}
-					onclick={() => (days = [...p.d])}>{p.l}</button
-				>
-			{/each}
-		</div>
-		<div class="grid grid-cols-7 gap-1.5">
-			{#each WEEK_ORDER as d (d)}
-				<button
-					type="button"
-					aria-pressed={days.includes(d)}
-					onclick={() => toggleDay(d)}
-					class={cn(
-						'rounded-xl py-2 text-xs font-semibold transition',
-						days.includes(d) ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-					)}>{WEEKDAYS[d]}</button
-				>
-			{/each}
-		</div>
-		<Button type="submit" class="h-11 w-full rounded-xl" disabled={saving || !title.trim() || !days.length}>
+				{#each PRESETS as p (p.l)}
+					<button
+						type="button"
+						class={cn(
+							'rounded-full border px-3 py-1 text-xs font-medium',
+							[...days].sort().join() === [...p.d].sort().join()
+								? 'border-primary bg-primary/10 text-primary'
+								: 'text-muted-foreground'
+						)}
+						onclick={() => (days = [...p.d])}>{p.l}</button
+					>
+				{/each}
+			</div>
+			<div class="grid grid-cols-7 gap-1.5">
+				{#each WEEK_ORDER as d (d)}
+					<button
+						type="button"
+						aria-pressed={days.includes(d)}
+						onclick={() => toggleDay(d)}
+						class={cn(
+							'rounded-xl py-2 text-xs font-semibold transition',
+							days.includes(d) ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+						)}>{WEEKDAYS[d]}</button
+					>
+				{/each}
+			</div>
+		{:else}
+			<div class="grid grid-cols-7 gap-1.5">
+				{#each Array.from({ length: 31 }, (_, i) => i + 1) as d (d)}
+					<button
+						type="button"
+						aria-pressed={monthDays.includes(d)}
+						onclick={() => toggleMonthDay(d)}
+						class={cn(
+							'rounded-xl py-2 text-xs font-semibold tabular-nums transition',
+							monthDays.includes(d) ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+						)}>{d}</button
+					>
+				{/each}
+			</div>
+			<p class="text-muted-foreground -mt-2 text-xs">
+				Contoh: bayar listrik tiap tgl 20, gajian tgl 25. Tanggal 29–31 jatuh di hari terakhir pada bulan yang lebih pendek.
+			</p>
+		{/if}
+		<Button type="submit" class="h-11 w-full rounded-xl" disabled={saving || !title.trim() || !ready}>
 			<PlusIcon class="size-4" /> Tambah rutinitas
 		</Button>
 	</form>
@@ -128,7 +164,7 @@
 				<div class="min-w-0 flex-1">
 					<p class="truncate font-medium">{r.title}</p>
 					<p class="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
-						{describeDays(r.days)}
+						{describeSchedule(r)}
 						{#if r.tag}
 							<span style="color: var(--marble-{tagColor(r.tag)})">#{r.tag}</span>
 						{/if}

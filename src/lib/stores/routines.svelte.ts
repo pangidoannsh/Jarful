@@ -24,6 +24,8 @@ export interface Routine {
 	title: string;
 	/** Weekdays it appears on, 0 = Minggu … 6 = Sabtu. */
 	days: number[];
+	/** Days of the month it appears on (1–31), for monthly routines such as bills. */
+	monthDays?: number[];
 	tag?: string;
 	estimateMin?: number;
 	weight?: Weight;
@@ -41,6 +43,7 @@ function fromData(id: string, d: Record<string, unknown>): Routine {
 		id,
 		title: String(d.title ?? ''),
 		days: Array.isArray(d.days) ? (d.days as number[]) : [],
+		monthDays: Array.isArray(d.monthDays) ? (d.monthDays as number[]) : undefined,
 		tag: d.tag ? String(d.tag) : undefined,
 		estimateMin: d.estimateMin ? Number(d.estimateMin) : undefined,
 		weight: d.weight === undefined ? undefined : (Number(d.weight) as Weight),
@@ -64,6 +67,25 @@ export class RoutineList {
 	}
 }
 
+/**
+ * Whether a routine appears on a date. A monthly date past the end of a short month
+ * (say the 31st in November) falls on that month's last day.
+ */
+export function isScheduled(r: { days?: number[]; monthDays?: number[] }, date: string) {
+	const d = fromKey(date);
+	if (r.monthDays?.length) {
+		const dom = d.getDate();
+		const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+		return r.monthDays.some((m) => m === dom || (m > last && dom === last));
+	}
+	return (r.days ?? []).includes(d.getDay());
+}
+
+export function describeSchedule(r: Pick<Routine, 'days' | 'monthDays'>) {
+	if (r.monthDays?.length) return `Tiap tgl ${[...r.monthDays].sort((a, b) => a - b).join(', ')}`;
+	return describeDays(r.days);
+}
+
 export function describeDays(days: number[]) {
 	const s = [...days].sort();
 	if (s.length === 7) return 'Setiap hari';
@@ -77,6 +99,7 @@ export function describeDays(days: number[]) {
 export async function saveRoutine(uid: string, r: Omit<Routine, 'id'>, id?: string) {
 	const ref = id ? doc(col(uid), id) : doc(col(uid));
 	const data: Record<string, unknown> = { title: r.title, days: r.days, active: r.active };
+	if (r.monthDays?.length) data.monthDays = r.monthDays;
 	if (r.tag) data.tag = r.tag;
 	if (r.estimateMin) data.estimateMin = r.estimateMin;
 	if (r.weight !== undefined) data.weight = r.weight;
@@ -137,7 +160,6 @@ export async function ensureRoutineTodos(uid: string, date: string, force = fals
 	if (ensured.has(key) && !force) return;
 	ensured.add(key);
 	try {
-		const weekday = fromKey(date).getDay();
 		const [routines, day] = await Promise.all([
 			getDocs(query(col(uid), where('active', '==', true))),
 			getDoc(doc(db, 'users', uid, 'days', date))
@@ -158,7 +180,7 @@ export async function ensureRoutineTodos(uid: string, date: string, force = fals
 		}
 		for (const snap of routines.docs) {
 			const r = fromData(snap.id, snap.data());
-			if (!r.days.includes(weekday) || skipped.has(r.id)) continue;
+			if (!isScheduled(r, date) || skipped.has(r.id)) continue;
 			const ref = doc(db, 'users', uid, 'todos', routineTodoId(r.id, date));
 			if ((await getDoc(ref)).exists()) continue;
 			const now = Timestamp.now();

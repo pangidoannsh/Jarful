@@ -10,7 +10,8 @@
 		ShieldIcon,
 		PlusIcon,
 		PaletteIcon,
-		SearchIcon
+		SearchIcon,
+		CalendarDaysIcon
 	} from '@lucide/svelte';
 	import { goto } from '$app/navigation';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
@@ -33,6 +34,7 @@
 			{ label: 'Todo baru', hint: 'N', icon: PlusIcon, run: newTodo },
 			{ label: 'Hari Ini', hint: 'H', icon: SunIcon, run: () => goto('/') },
 			{ label: 'Rencana Besok', hint: 'B', icon: MoonStarIcon, run: () => goto('/besok') },
+			{ label: 'Terjadwal', hint: 'J', icon: CalendarDaysIcon, run: () => goto('/terjadwal') },
 			{ label: 'Rekap Malam', hint: 'R', icon: SparklesIcon, run: () => goto('/rekap') },
 			{ label: 'Statistik', hint: 'S', icon: ChartColumnIcon, run: () => goto('/statistik') },
 			{ label: 'Saran Belajar', hint: 'L', icon: GraduationCapIcon, run: () => goto('/belajar') },
@@ -78,6 +80,7 @@
 			h: () => goto('/'),
 			t: () => goto('/'),
 			b: () => goto('/besok'),
+			j: () => goto('/terjadwal'),
 			r: () => goto('/rekap'),
 			s: () => goto('/statistik'),
 			l: () => goto('/belajar'),

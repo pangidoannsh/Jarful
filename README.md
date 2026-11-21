@@ -12,7 +12,9 @@ Dibangun dengan SvelteKit (Svelte 5), Tailwind CSS v4, shadcn-svelte, dan Fireba
 - **Rekap Malam:** jumlah selesai, streak, jejak waktu, mood, dan satu kalimat refleksi.
 - **Statistik:** heatmap setahun, streak sekarang dan terpanjang, hari terbaik.
 - **Bobot usaha:** tambahkan `!` (sedang) atau `!!` (berat). Kelereng jadi lebih besar, bunyinya lebih mantap, dan tercatat sebagai poin usaha. Tambahkan `~` untuk **pengingat** kecil seperti `minum creatine ~`: tetap bisa dicentang, tapi tidak menjadi kelereng dan tidak dihitung sebagai produktivitas. Bobot bisa diubah lewat menu ⋯.
-- **Input pintar:** ketik `olahraga 30m #sehat besok` untuk mengisi durasi, tag, dan tanggal sekaligus. Tanggal yang dikenali: `hari ini`, `besok`, `lusa`, dan nama hari (`senin` … `minggu`).
+- **Input pintar:** ketik `olahraga 30m #sehat besok` untuk mengisi durasi, tag, dan tanggal sekaligus. Tanggal yang dikenali: `hari ini`, `besok`, `lusa`, nama hari, `25/12`, `25-12-2027`, `3 des`, `14 februari 2027`, `tgl 15`, `10 hari lagi`, `minggu depan`. Atau pilih lewat ikon kalender.
+- **Terjadwal:** halaman `/terjadwal` berisi semua todo dan pengingat setelah besok, dikelompokkan per tanggal.
+- **Rutinitas bulanan:** selain hari dalam seminggu, rutinitas bisa diatur per tanggal (misalnya tiap tgl 25).
 - **Pengingat malam:** notifikasi sekitar jam 21.00 WIB berisi rekap singkat dan ajakan merencanakan besok.
 - **PWA:** bisa dipasang di layar utama HP.
 - **Kategori berwarna:** setiap `#tag` punya warna kelereng sendiri; rekap menunjukkan ke mana energimu pergi.

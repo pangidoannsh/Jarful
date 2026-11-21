@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { flip } from 'svelte/animate';
 	import { fade, fly } from 'svelte/transition';
-	import { MoonStarIcon, StarIcon, TriangleAlertIcon, BellIcon, RepeatIcon } from '@lucide/svelte';
+	import { MoonStarIcon, StarIcon, TriangleAlertIcon, BellIcon, RepeatIcon, CalendarDaysIcon } from '@lucide/svelte';
 	import { session } from '#lib/stores/session.svelte.js';
 	import { DayTodos } from '#lib/stores/todos.svelte.js';
 	import { addDays, formatDay, todayKey } from '#lib/date.js';
@@ -59,9 +59,14 @@
 		<p class="text-muted-foreground mt-2 text-sm">
 			Tulis 3–7 hal yang ingin kamu selesaikan besok, lalu pilih satu sebagai Fokus Utama.
 		</p>
-		<a href="/rutinitas" class="text-primary mt-2 inline-flex items-center gap-1 text-sm font-medium">
-			<RepeatIcon class="size-3.5" /> Atur rutinitas harian
-		</a>
+		<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+			<a href="/rutinitas" class="text-primary inline-flex items-center gap-1 text-sm font-medium">
+				<RepeatIcon class="size-3.5" /> Atur rutinitas harian
+			</a>
+			<a href="/terjadwal" class="text-primary inline-flex items-center gap-1 text-sm font-medium">
+				<CalendarDaysIcon class="size-3.5" /> Lihat yang terjadwal
+			</a>
+		</div>
 	</section>
 
 	<div class="mt-6 space-y-4">

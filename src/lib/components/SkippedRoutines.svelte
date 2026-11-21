@@ -4,8 +4,7 @@
 	import { arrayRemove, doc, getDoc, getDocs, query, collection, where, setDoc } from 'firebase/firestore';
 	import { toast } from 'svelte-sonner';
 	import { db } from '#lib/firebase.js';
-	import { fromKey } from '#lib/date.js';
-	import { ensureRoutineTodos } from '#lib/stores/routines.svelte.js';
+	import { ensureRoutineTodos, isScheduled } from '#lib/stores/routines.svelte.js';
 
 	/** Routines skipped for one day (their todo was deleted that day), with a way to bring them back. */
 	let { uid, date }: { uid: string; date: string } = $props();
@@ -15,14 +14,13 @@
 
 	async function load() {
 		try {
-			const weekday = fromKey(date).getDay();
 			const [day, routines] = await Promise.all([
 				getDoc(doc(db, 'users', uid, 'days', date)),
 				getDocs(query(collection(db, 'users', uid, 'routines'), where('active', '==', true)))
 			]);
 			const ids = new Set<string>((day.data()?.skippedRoutines as string[] | undefined) ?? []);
 			skipped = routines.docs
-				.filter((r) => ids.has(r.id) && ((r.data().days as number[]) ?? []).includes(weekday))
+				.filter((r) => ids.has(r.id) && isScheduled(r.data(), date))
 				.map((r) => ({ id: r.id, title: String(r.data().title) }));
 		} catch {
 			skipped = [];
