@@ -16,7 +16,7 @@ Dibangun dengan SvelteKit (Svelte 5), Tailwind CSS v4, shadcn-svelte, dan Fireba
 - **Terjadwal:** halaman `/terjadwal` berisi semua todo dan pengingat setelah besok, dikelompokkan per tanggal.
 - **Rutinitas bulanan:** selain hari dalam seminggu, rutinitas bisa diatur per tanggal (misalnya tiap tgl 25).
 - **Pengingat malam:** notifikasi sekitar jam 21.00 WIB berisi rekap singkat dan ajakan merencanakan besok.
-- **Pengingat pagi:** notifikasi sekitar jam 06.00 WIB berisi todo dan pengingat yang dijadwalkan untuk hari itu (rutinitas tidak ikut). Tidak dikirim kalau tidak ada yang terjadwal.
+- **Pengingat pagi:** notifikasi sekitar jam 06.00 WIB berisi hanya todo dan pengingat yang diberi tanggal secara eksplisit (diketik seperti `25/11`, `besok`, atau dipilih lewat kalender). Todo biasa dan rutinitas tidak ikut. Tidak dikirim kalau tidak ada.
 - **Tes notifikasi (admin):** di Pengaturan, cek kunci VAPID, dukungan browser, izin, pendaftaran perangkat, lalu kirim tes lokal, tes pagi, dan tes malam.
 - **PWA:** bisa dipasang di layar utama HP.
 - **Kategori berwarna:** setiap `#tag` punya warna kelereng sendiri; rekap menunjukkan ke mana energimu pergi.

@@ -95,7 +95,8 @@
 				openPicker();
 				return;
 			}
-			addTodo(uid, { title: p.title, date: target, source: 'planned', ...extra });
+			// A date typed or picked by the user marks it for the morning notification.
+			addTodo(uid, { title: p.title, date: target, source: 'planned', scheduled: Boolean(pickedDate || p.date), ...extra });
 			if (target !== date) {
 				const later = target > addDays(todayKey(), 1);
 				toast(`Ditambahkan ke ${formatDay(target, { year: target.slice(0, 4) !== todayKey().slice(0, 4) ? 'numeric' : undefined })}`, {

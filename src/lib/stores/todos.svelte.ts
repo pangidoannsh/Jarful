@@ -50,6 +50,7 @@ function fromSnap(id: string, data: Record<string, unknown>): Todo {
 		tag: data.tag ? String(data.tag) : undefined,
 		estimateMin: data.estimateMin ? Number(data.estimateMin) : undefined,
 		routineId: data.routineId ? String(data.routineId) : undefined,
+		scheduled: data.scheduled === true ? true : undefined,
 		focusMin: data.focusMin ? Number(data.focusMin) : undefined,
 		note: data.note ? String(data.note) : undefined
 	};
@@ -125,6 +126,7 @@ export function addTodo(
 		estimateMin?: number;
 		weight?: Weight;
 		color?: number;
+		scheduled?: boolean;
 	}
 ) {
 	const id = input.id ?? newTodoId(uid);
@@ -147,6 +149,7 @@ export function addTodo(
 		rememberTag(input.tag);
 	}
 	if (input.estimateMin) todo.estimateMin = input.estimateMin;
+	if (input.scheduled) todo.scheduled = true;
 	const batch = writeBatch(db);
 	batch.set(todoDoc(uid, id), todo);
 	if (todo.done && todo.weight !== 0) bumpDay(batch, uid, todo.date, 1);
@@ -210,6 +213,7 @@ export function updateTodo(
 		patch.isFocus = false;
 	}
 	const moving = !todo.done && next.date && next.date !== todo.date;
+	if (next.date) patch.scheduled = true;
 	if (moving) {
 		patch.date = next.date;
 		patch.isFocus = false;

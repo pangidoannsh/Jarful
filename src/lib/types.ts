@@ -31,6 +31,8 @@ export interface Todo {
 	weight: Weight;
 	/** Set when the todo was created by a routine. */
 	routineId?: string;
+	/** Created with an explicit date (typed or picked): included in the morning notification. */
+	scheduled?: boolean;
 	/** Minutes spent in the focus timer on this todo. */
 	focusMin?: number;
 	/** Learning note, for #belajar todos (used by Saran Belajar). */

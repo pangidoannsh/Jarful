@@ -24,23 +24,30 @@ interface Message {
 }
 
 /**
- * Morning digest: today's todos the user scheduled themselves (routines left out, since
- * they show up every day). Null when there is nothing scheduled.
+ * Morning digest: only today's todos the user gave a date to (typed like "25/11" or picked
+ * with the calendar). Older reminders (~) made before that flag existed also count.
+ * Routines and plain todos are left out. Null when there is nothing scheduled.
  */
 async function morningMessage(uid: string): Promise<Message | null> {
 	const today = dayKeyIn(REMINDER_TZ);
 	const snap = await adminDb().collection(`users/${uid}/todos`).where('date', '==', today).get();
 	const items = snap.docs
 		.map((d) => d.data())
-		.filter((t) => !t.done && !t.routineId)
+		.filter((t) => !t.done && !t.routineId && (t.scheduled === true || (t.scheduled === undefined && t.weight === 0)))
 		.sort((a, b) => Number(Boolean(b.isFocus)) - Number(Boolean(a.isFocus)) || Number(a.order ?? 0) - Number(b.order ?? 0));
 	if (!items.length) return null;
 	const names = items.slice(0, 4).map((t) => String(t.title));
 	const more = items.length - names.length;
 	const reminders = items.filter((t) => t.weight === 0).length;
 	return {
-		title: items.length === 1 ? `Hari ini: ${names[0]}` : `Hari ini ada ${items.length} hal${reminders ? ` (${reminders} pengingat)` : ''}`,
-		body: items.length === 1 ? 'Semangat! Buka Jarful untuk mulai mengisi toples.' : `${names.join(' · ')}${more > 0 ? ` +${more} lainnya` : ''}`,
+		title:
+			items.length === 1
+				? `Hari ini: ${names[0]}`
+				: `Terjadwal hari ini: ${items.length} hal${reminders ? ` (${reminders} pengingat)` : ''}`,
+		body:
+			items.length === 1
+				? 'Pengingat yang kamu jadwalkan untuk hari ini.'
+				: `${names.join(' · ')}${more > 0 ? ` +${more} lainnya` : ''}`,
 		url: '/'
 	};
 }
@@ -108,7 +115,11 @@ export async function sendNotifications(kind: NotifyKind, onlyUid?: string, test
 	for (const [uid, devices] of byUser) {
 		let msg: Message | null = kind === 'morning' ? await morningMessage(uid) : await messageFor(uid);
 		if (!msg && test) {
-			msg = { title: 'Tes pengingat pagi', body: 'Tidak ada todo terjadwal hari ini. Notifikasi sudah berfungsi.', url: '/' };
+			msg = {
+				title: 'Tes pengingat pagi',
+				body: 'Tidak ada yang kamu jadwalkan untuk hari ini. Notifikasi sudah berfungsi.',
+				url: '/'
+			};
 		}
 		if (!msg) {
 			skipped++;
