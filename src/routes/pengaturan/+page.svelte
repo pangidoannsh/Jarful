@@ -79,9 +79,30 @@
 
 	let permission = $state<string>('');
 	let pushSupported = $state<string | null>(null);
-	$effect(() => {
+	const readPermission = () => {
 		permission = 'Notification' in window ? Notification.permission : 'unsupported';
+	};
+	$effect(() => {
+		readPermission();
 		device.unsupportedReason().then((r) => (pushSupported = r ?? ''));
+		// Follow changes made by the switches, the site settings, or another tab.
+		let status: PermissionStatus | null = null;
+		navigator.permissions
+			?.query({ name: 'notifications' })
+			.then((s) => {
+				status = s;
+				s.onchange = readPermission;
+			})
+			.catch(() => {});
+		addEventListener('focus', readPermission);
+		return () => {
+			if (status) status.onchange = null;
+			removeEventListener('focus', readPermission);
+		};
+	});
+	// The switches ask for permission too; re-read once they finish.
+	$effect(() => {
+		if (!device.busy) readPermission();
 	});
 
 	const themes: { v: ThemePref; l: string }[] = [
