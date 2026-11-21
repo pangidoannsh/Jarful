@@ -16,6 +16,8 @@ Dibangun dengan SvelteKit (Svelte 5), Tailwind CSS v4, shadcn-svelte, dan Fireba
 - **Terjadwal:** halaman `/terjadwal` berisi semua todo dan pengingat setelah besok, dikelompokkan per tanggal.
 - **Rutinitas bulanan:** selain hari dalam seminggu, rutinitas bisa diatur per tanggal (misalnya tiap tgl 25).
 - **Pengingat malam:** notifikasi sekitar jam 21.00 WIB berisi rekap singkat dan ajakan merencanakan besok.
+- **Pengingat pagi:** notifikasi sekitar jam 06.00 WIB berisi todo dan pengingat yang dijadwalkan untuk hari itu (rutinitas tidak ikut). Tidak dikirim kalau tidak ada yang terjadwal.
+- **Tes notifikasi (admin):** di Pengaturan, cek kunci VAPID, dukungan browser, izin, pendaftaran perangkat, lalu kirim tes lokal, tes pagi, dan tes malam.
 - **PWA:** bisa dipasang di layar utama HP.
 - **Kategori berwarna:** setiap `#tag` punya warna kelereng sendiri; rekap menunjukkan ke mana energimu pergi.
 - **Rutinitas:** kebiasaan yang muncul otomatis di hari-hari yang dipilih.
@@ -78,7 +80,7 @@ Hampir seluruh aplikasi berjalan di browser dan langsung terhubung ke Firebase. 
 3. Masukkan kedua variabel itu ke Vercel, lalu Redeploy.
 4. Di aplikasi, buka **Pengaturan → Pengingat malam**, nyalakan, izinkan notifikasi, lalu tekan **Kirim tes**.
 
-Pengingat dikirim oleh Vercel Cron (`vercel.json`, jadwal `0 14 * * *` UTC = 21.00 WIB). Di paket Hobby, cron berjalan sekali sehari dan bisa meleset sampai 59 menit, jadi notifikasi tiba antara 21.00–21.59 WIB. Di iPhone, notifikasi hanya bekerja kalau Jarful sudah dipasang ke layar utama (iOS 16.4 ke atas).
+Pengingat dikirim oleh Vercel Cron (`vercel.json`: `0 14 * * *` UTC = 21.00 WIB untuk malam, `0 23 * * *` UTC = 06.00 WIB untuk pagi). Di paket Hobby, cron berjalan sekali sehari dan bisa meleset sampai 59 menit, jadi notifikasi tiba antara 21.00–21.59 WIB. Di iPhone, notifikasi hanya bekerja kalau Jarful sudah dipasang ke layar utama (iOS 16.4 ke atas).
 
 ### 7. Saran Belajar dari Claude (opsional)
 
