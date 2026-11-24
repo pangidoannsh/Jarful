@@ -15,7 +15,7 @@ Dibangun dengan SvelteKit (Svelte 5), Tailwind CSS v4, shadcn-svelte, dan Fireba
 - **Input pintar:** ketik `olahraga 30m #sehat besok` untuk mengisi durasi, tag, dan tanggal sekaligus. Tanggal yang dikenali: `hari ini`, `besok`, `lusa`, nama hari, `25/12`, `25-12-2027`, `3 des`, `14 februari 2027`, `tgl 15`, `10 hari lagi`, `minggu depan`. Atau pilih lewat ikon kalender.
 - **Terjadwal:** halaman `/terjadwal` berisi semua todo dan pengingat setelah besok, dikelompokkan per tanggal.
 - **Rutinitas bulanan:** selain hari dalam seminggu, rutinitas bisa diatur per tanggal (misalnya tiap tgl 25).
-- **Pengingat malam:** notifikasi sekitar jam 21.00 WIB berisi rekap singkat dan ajakan merencanakan besok.
+- **Pengingat malam:** notifikasi sekitar jam 21.00 WIB. Kalau masih ada pengingat (`~`) hari ini yang belum dicentang, termasuk dari rutinitas, notifikasi malam mengingatkannya lagi lebih dulu. Kalau tidak ada, isinya rekap singkat dan ajakan merencanakan besok.
 - **Pengingat pagi:** notifikasi sekitar jam 06.00 WIB berisi semua pengingat (`~`) hari itu, termasuk dari rutinitas (misalnya `Minum creatine ~` setiap hari), ditambah todo yang diberi tanggal (`25/11`, `besok`, atau lewat kalender). Todo biasa dan rutinitas non-pengingat tidak ikut. Tidak dikirim kalau tidak ada.
 - **Tes notifikasi (admin):** di Pengaturan, cek kunci VAPID, dukungan browser, izin, pendaftaran perangkat, lalu kirim tes lokal, tes pagi, dan tes malam.
 - **PWA:** bisa dipasang di layar utama HP.

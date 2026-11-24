@@ -255,7 +255,7 @@
 				<div>
 					<p class="font-medium">Pengingat malam</p>
 					<p class="text-muted-foreground text-sm">
-						Sekitar jam 21.00 WIB: rekap singkat hari ini dan ajakan merencanakan besok.
+						Sekitar jam 21.00 WIB: mengingatkan lagi pengingat (~) hari ini yang belum dicentang, lalu rekap singkat dan ajakan merencanakan besok.
 					</p>
 				</div>
 			</div>

@@ -24,6 +24,54 @@ interface Message {
 	url: string;
 }
 
+interface TodayItem {
+	title: string;
+	reminder: boolean;
+	scheduled: boolean;
+	isFocus: boolean;
+	order: number;
+}
+
+/**
+ * Today's unfinished todos, plus routine reminders whose todo has not been created yet
+ * (the app was not opened today). Skipped routines and finished todos are left out.
+ */
+async function loadToday(uid: string, today: string): Promise<TodayItem[]> {
+	const db = adminDb();
+	const [todoSnap, routineSnap, daySnap] = await Promise.all([
+		db.collection(`users/${uid}/todos`).where('date', '==', today).get(),
+		db.collection(`users/${uid}/routines`).where('active', '==', true).get(),
+		db.doc(`users/${uid}/days/${today}`).get()
+	]);
+	const items: TodayItem[] = todoSnap.docs
+		.map((d) => d.data())
+		.filter((t) => !t.done)
+		.map((t) => ({
+			title: String(t.title),
+			reminder: t.weight === 0,
+			scheduled: t.scheduled === true,
+			isFocus: Boolean(t.isFocus),
+			order: Number(t.order ?? 0)
+		}));
+	const existing = new Set(todoSnap.docs.map((d) => d.id));
+	const skipped = new Set<string>((daySnap.data()?.skippedRoutines as string[] | undefined) ?? []);
+	for (const r of routineSnap.docs) {
+		const data = r.data();
+		if (data.weight !== 0 || skipped.has(r.id) || existing.has(`rt-${r.id}-${today}`)) continue;
+		if (!isScheduled({ days: data.days, monthDays: data.monthDays }, today)) continue;
+		items.push({ title: String(data.title), reminder: true, scheduled: false, isFocus: false, order: 0 });
+	}
+	return items.sort(
+		(a, b) => Number(b.isFocus) - Number(a.isFocus) || Number(b.reminder) - Number(a.reminder) || a.order - b.order
+	);
+}
+
+function listNames(items: TodayItem[]) {
+	const names = items.slice(0, 4).map((t) => t.title);
+	const more = items.length - names.length;
+	return `${names.join(' · ')}${more > 0 ? ` +${more} lainnya` : ''}`;
+}
+
 /**
  * Morning digest for today:
  * - every reminder (~), including reminders from routines, so a daily routine reminder
@@ -32,61 +80,45 @@ interface Message {
  * Plain todos and non-reminder routines are left out. Null when there is nothing to say.
  */
 async function morningMessage(uid: string): Promise<Message | null> {
-	const db = adminDb();
-	const today = dayKeyIn(REMINDER_TZ);
-	const [todoSnap, routineSnap, daySnap] = await Promise.all([
-		db.collection(`users/${uid}/todos`).where('date', '==', today).get(),
-		db.collection(`users/${uid}/routines`).where('active', '==', true).get(),
-		db.doc(`users/${uid}/days/${today}`).get()
-	]);
-	const todos = todoSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as Record<string, unknown> & { id: string });
-	const items = todos
-		.filter((t) => !t.done && (t.weight === 0 || t.scheduled === true))
-		.sort(
-			(a, b) =>
-				Number(Boolean(b.isFocus)) - Number(Boolean(a.isFocus)) ||
-				Number(b.weight === 0) - Number(a.weight === 0) ||
-				Number(a.order ?? 0) - Number(b.order ?? 0)
-		)
-		.map((t) => ({ title: String(t.title), reminder: t.weight === 0 }));
-
-	// Routine reminders whose todo has not been created yet (the app was not opened today).
-	const existing = new Set(todos.map((t) => t.id));
-	const skipped = new Set<string>((daySnap.data()?.skippedRoutines as string[] | undefined) ?? []);
-	for (const r of routineSnap.docs) {
-		const data = r.data();
-		if (data.weight !== 0 || skipped.has(r.id) || existing.has(`rt-${r.id}-${today}`)) continue;
-		if (!isScheduled({ days: data.days, monthDays: data.monthDays }, today)) continue;
-		items.push({ title: String(data.title), reminder: true });
-	}
-
+	const items = (await loadToday(uid, dayKeyIn(REMINDER_TZ))).filter((t) => t.reminder || t.scheduled);
 	if (!items.length) return null;
-	const names = items.slice(0, 4).map((t) => t.title);
-	const more = items.length - names.length;
 	const reminders = items.filter((t) => t.reminder).length;
 	return {
 		title:
 			items.length === 1
-				? `Hari ini: ${names[0]}`
+				? `Hari ini: ${items[0].title}`
 				: `Hari ini: ${items.length} hal${reminders ? ` (${reminders} pengingat)` : ''}`,
-		body:
-			items.length === 1
-				? 'Pengingat untuk hari ini dari Jarful.'
-				: `${names.join(' · ')}${more > 0 ? ` +${more} lainnya` : ''}`,
+		body: items.length === 1 ? 'Pengingat untuk hari ini dari Jarful.' : listNames(items),
 		url: '/'
 	};
 }
 
-async function messageFor(uid: string) {
+/**
+ * Evening message. Reminders of today that are still unticked come first, so nothing
+ * like "Minum creatine" is forgotten before bed; otherwise the usual recap and nudge
+ * to plan tomorrow.
+ */
+async function messageFor(uid: string): Promise<Message> {
 	const db = adminDb();
 	const today = dayKeyIn(REMINDER_TZ);
 	const tomorrow = dayKeyIn(REMINDER_TZ, 1);
-	const [day, planned] = await Promise.all([
+	const [day, planned, todayItems] = await Promise.all([
 		db.doc(`users/${uid}/days/${today}`).get(),
-		db.collection(`users/${uid}/todos`).where('date', '==', tomorrow).count().get()
+		db.collection(`users/${uid}/todos`).where('date', '==', tomorrow).count().get(),
+		loadToday(uid, today)
 	]);
 	const done = Number(day.data()?.doneCount ?? 0);
 	const plannedTomorrow = planned.data().count;
+
+	const pending = todayItems.filter((t) => t.reminder);
+	if (pending.length) {
+		const after = plannedTomorrow > 0 ? 'Setelah itu, rencana besok sudah siap.' : 'Setelah itu, rencanakan besok.';
+		return {
+			title: pending.length === 1 ? `Belum dicentang: ${pending[0].title}` : `${pending.length} pengingat belum dicentang`,
+			body: pending.length === 1 ? `Masih sempat sebelum tidur. ${after}` : `${listNames(pending)}. ${after}`,
+			url: '/'
+		};
+	}
 
 	if (plannedTomorrow > 0) {
 		return {
