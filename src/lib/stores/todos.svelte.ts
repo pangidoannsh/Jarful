@@ -275,7 +275,10 @@ export function setFocus(uid: string, items: Todo[], id: string | null) {
 	batch.commit().catch(fail);
 }
 
-/** Unfinished todos from the last 7 days before `today`. */
+/**
+ * Unfinished todos from the last 7 days before `today`. Routine todos are left out:
+ * the routine brings them back on its next day anyway, so carrying them would double them.
+ */
 export async function loadCarryOver(uid: string, today: string) {
 	const q = query(
 		todosCol(uid),
@@ -285,7 +288,7 @@ export async function loadCarryOver(uid: string, today: string) {
 	const snap = await getDocs(q);
 	return snap.docs
 		.map((d) => fromSnap(d.id, d.data()))
-		.filter((t) => !t.done && t.source === 'planned' && t.weight !== 0)
+		.filter((t) => !t.done && t.source === 'planned' && t.weight !== 0 && !t.routineId)
 		.sort((a, b) => b.date.localeCompare(a.date) || a.order - b.order);
 }
 
