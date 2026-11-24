@@ -70,20 +70,21 @@ function drawJar(
 
 	// marbles dropped onto the pile; heavier todos are bigger
 	const inner = { x: x + 24, w: w - 48, bottom: gy + gh - 24, top: gy + 30 };
-	const area = marbles.reduce((sum, m) => sum + m.scale ** 2, 0);
-	const base = area <= 22 ? 30 : area <= 40 ? 23 : area <= 72 ? 17.5 : 13.5;
+	// Same rule as the app: marbles keep their size and a full jar stays full.
+	const base = 30;
 	const spots = dropPack(
 		marbles.map((m) => base * m.scale),
 		inner.x,
 		inner.w,
-		inner.bottom
+		inner.bottom,
+		[],
+		inner.top
 	);
 	ctx.save();
 	roundRect(ctx, x + 6, gy + 6, w - 12, gh - 12, 42);
 	ctx.clip();
-	spots.forEach((p, i) => {
-		if (p.y - p.r < inner.top) return;
-		const { x: cx, y: cy, r } = p;
+	spots.forEach((p) => {
+		const { x: cx, y: cy, r, i } = p;
 		ctx.beginPath();
 		ctx.arc(cx, cy, r - 1, 0, Math.PI * 2);
 		ctx.fillStyle = marbles[i].color;

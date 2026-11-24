@@ -2,9 +2,21 @@
  * Drops circles one by one into a jar: each lands at the lowest spot it can reach
  * without overlapping the ones already there. Gives a natural pile of marbles of
  * different sizes. Coordinates: x grows right, y grows down, `bottom` is the floor.
+ *
+ * Marbles keep their size. Once the pile reaches `top` the jar is full: a marble that
+ * no longer fits is left out (a smaller one later may still slip into a gap), and
+ * `i` on each result tells which input it was.
  */
-export function dropPack(radii: number[], left: number, width: number, bottom: number, jitter: number[] = []) {
-	const placed: { x: number; y: number; r: number }[] = [];
+export function dropPack(
+	radii: number[],
+	left: number,
+	width: number,
+	bottom: number,
+	jitter: number[] = [],
+	top = -Infinity
+) {
+	const placed: { x: number; y: number; r: number; i: number }[] = [];
+	let misses = 0;
 	for (let i = 0; i < radii.length; i++) {
 		const r = radii[i];
 		const min = left + r;
@@ -25,8 +37,14 @@ export function dropPack(radii: number[], left: number, width: number, bottom: n
 				best = { x, y };
 			}
 		}
+		if (best!.y - r < top) {
+			// Full here. After a run of misses the jar is simply full: stop looking.
+			if (++misses >= 12) break;
+			continue;
+		}
+		misses = 0;
 		const j = jitter[i] ?? 0;
-		placed.push({ x: best!.x + j * 0.4, y: best!.y, r });
+		placed.push({ x: best!.x + j * 0.4, y: best!.y, r, i });
 	}
 	return placed;
 }

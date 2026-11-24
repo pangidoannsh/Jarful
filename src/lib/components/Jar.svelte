@@ -58,28 +58,22 @@
 	const WIDTH = 62;
 	const BOTTOM = 113;
 	const TOP = 30;
-	function radiusFor(n: number) {
-		if (n <= 22) return 7;
-		if (n <= 40) return 5.4;
-		if (n <= 72) return 4.1;
-		return 3.2;
-	}
+	/** Marbles always keep this size; a full jar simply stays full. */
+	const BASE_R = 7;
 	function hash(s: string) {
 		let h = 0;
 		for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
 		return h;
 	}
 	// Marbles are "dropped" in order and settle on the pile. Heavier todos make bigger
-	// marbles, and every marble shrinks as the jar fills up.
+	// marbles. Sizes never shrink: once the jar is full it stays full, and the extra
+	// marbles are counted in the "+N" badge instead.
 	const placed = $derived.by(() => {
-		const area = visible.reduce((sum, m) => sum + marbleScale(m.weight) ** 2, 0);
-		const base = radiusFor(Math.ceil(area));
-		const radii = visible.map((m) => base * marbleScale(m.weight));
+		const radii = visible.map((m) => BASE_R * marbleScale(m.weight));
 		const jitter = visible.map((m) => ((hash(m.id) % 7) / 7 - 0.5) * 0.6);
-		return dropPack(radii, LEFT, WIDTH, BOTTOM, jitter)
-			.map((p, i) => ({ m: visible[i], ...p }))
-			.filter((p) => p.y - p.r >= TOP);
+		return dropPack(radii, LEFT, WIDTH, BOTTOM, jitter, TOP).map((p) => ({ m: visible[p.i], ...p }));
 	});
+	const overflow = $derived(visible.length - placed.length);
 
 	function drop(_node: Element, { delay = 0 }: { delay?: number } = {}) {
 		return {
@@ -103,6 +97,14 @@
 				{jar.label.text}
 			</span>
 		{/key}
+	{/if}
+	{#if overflow > 0}
+		<span
+			class="bg-primary text-primary-foreground pointer-events-none absolute top-[14%] -right-1 z-10 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold tabular-nums shadow-sm"
+			title={`${overflow} kelereng lagi tidak muat di toples`}
+		>
+			+{overflow}
+		</span>
 	{/if}
 	<svg
 		viewBox="0 0 100 124"
